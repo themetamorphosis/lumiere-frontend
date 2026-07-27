@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
+
 import { useSession } from "@/components/SessionProvider";
 import { motion, AnimatePresence, useInView } from "framer-motion";
 import { useRef } from "react";
@@ -269,18 +269,7 @@ export default function LandingPage() {
                     <span className="lp-statement--muted">IT&apos;S A JOURNEY.</span>
                   </h2>
                 </Reveal>
-                <Reveal delay={0.1}>
-                  <div className="lp-cinema-image">
-                    <Image
-                      src="/landing-cinema.png"
-                      alt="Vintage cinema theater"
-                      width={600}
-                      height={400}
-                      className="lp-cinema-img"
-                      priority
-                    />
-                  </div>
-                </Reveal>
+
                 <Reveal delay={0.15}>
                   <Link
                     href={session ? "/dashboard" : "/register"}

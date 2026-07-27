@@ -8,6 +8,7 @@ import type { DashboardStats } from "@/hooks/useDashboardStats";
 import type { Item } from "@/lib/types";
 import TmdbSearchInput from "@/components/TmdbSearchInput";
 import type { TMDBSearchResult } from "@/lib/tmdb";
+import { useRetroTheme } from "@/components/layout/RetroThemeContext";
 
 interface RetroDashboardProps {
   greeting: string;
@@ -30,8 +31,11 @@ export default function RetroDashboard({
   onQuickAdd,
   toast,
 }: RetroDashboardProps) {
+  const { theme } = useRetroTheme();
+  const lpThemeClass = theme === "retro-light" ? "theme-light" : "theme-dark";
+
   return (
-    <div className="lp db-frame">
+    <div className={`lp ${lpThemeClass} db-frame`}>
       {/* ━━━ HEADER ━━━ */}
       <div className="db-header">
         <div className="db-header-left">

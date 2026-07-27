@@ -59,7 +59,7 @@ function SortDropdown({
     <div ref={ref} className="relative font-mono text-xs">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 px-5 h-full text-xs font-semibold text-tui-text-muted hover:text-white transition-all uppercase hover:bg-white/10"
+        className="flex items-center gap-2 px-5 h-full text-xs font-semibold text-tui-text-muted hover:text-tui-text transition-all uppercase hover:bg-tui-input"
       >
         <span>Sort: {current}</span>
         <ChevronDown
@@ -136,7 +136,7 @@ function GenreDropdown({
     <div ref={ref} className="relative font-mono text-xs">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 px-5 h-full text-xs font-semibold text-tui-text-muted hover:text-white transition-all uppercase hover:bg-white/10"
+        className="flex items-center gap-2 px-5 h-full text-xs font-semibold text-tui-text-muted hover:text-tui-text transition-all uppercase hover:bg-tui-input"
       >
         <span>Genre: {currentLabel}</span>
         <ChevronDown
@@ -347,12 +347,12 @@ export default function LibraryPage({
         <div className="flex flex-col gap-4 mb-10 font-sans">
           
           {/* TOP ROW: Navigation & Stats */}
-          <div className="flex flex-col xl:flex-row justify-between items-center gap-4 bg-zinc-900/40 backdrop-blur-2xl border border-white/10 p-2 shadow-2xl">
+          <div className="flex flex-col xl:flex-row justify-between items-center gap-4 bg-tui-panel/80 backdrop-blur-2xl border border-tui-border p-2 shadow-2xl">
             
             {/* Left: Media Types & Categories */}
             <div className="flex flex-1 flex-col sm:flex-row w-full xl:w-auto gap-2">
               {/* Media Types Pill */}
-              <div className="flex items-center bg-black/40 p-1 border border-white/5">
+              <div className="flex items-center bg-tui-input/60 p-1 border border-tui-border">
                 {SUB_TABS.map((tab) => {
                   const isActive = pathname?.startsWith(tab.href);
                   return (
@@ -361,8 +361,8 @@ export default function LibraryPage({
                       href={tab.href}
                       className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 text-xs font-semibold transition-all duration-300 ${
                         isActive
-                          ? `bg-white/10 ${activeBorderClass.replace('border-', 'text-')} shadow-lg`
-                          : "text-tui-text-muted hover:text-white hover:bg-white/5"
+                          ? `bg-tui-input ${activeBorderClass.replace('border-', 'text-')} shadow-lg`
+                          : "text-tui-text-muted hover:text-tui-text hover:bg-tui-input/50"
                       }`}
                     >
                       <tab.icon className="h-4 w-4" />
@@ -373,14 +373,14 @@ export default function LibraryPage({
               </div>
 
               {/* Categories Pill */}
-              <div className="flex items-center bg-black/40 p-1 border border-white/5 flex-1">
+              <div className="flex items-center bg-tui-input/60 p-1 border border-tui-border flex-1">
                 <Link
                   href={`/library/${mediaPath}`}
                   onClick={() => setOnlyFav(false)}
                   className={`flex-1 flex items-center justify-center px-4 py-3 text-xs font-semibold transition-all duration-300 ${
                     mode === "library" && !onlyFav
-                      ? "text-tui-green bg-white/10 shadow-lg"
-                      : "text-tui-text-muted hover:text-white hover:bg-white/5"
+                      ? "text-tui-green bg-tui-input shadow-lg"
+                      : "text-tui-text-muted hover:text-tui-text hover:bg-tui-input/50"
                   }`}
                 >
                   WATCHED
@@ -390,8 +390,8 @@ export default function LibraryPage({
                   onClick={() => setOnlyFav(false)}
                   className={`flex-1 flex items-center justify-center px-4 py-3 text-xs font-semibold transition-all duration-300 ${
                     mode === "wishlist" && !onlyFav
-                      ? "text-tui-purple bg-white/10 shadow-lg"
-                      : "text-tui-text-muted hover:text-white hover:bg-white/5"
+                      ? "text-tui-purple bg-tui-input shadow-lg"
+                      : "text-tui-text-muted hover:text-tui-text hover:bg-tui-input/50"
                   }`}
                 >
                   WISHLIST
@@ -400,8 +400,8 @@ export default function LibraryPage({
                   onClick={() => setOnlyFav(!onlyFav)}
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-semibold transition-all duration-300 ${
                     onlyFav
-                      ? "text-tui-amber bg-white/10 shadow-lg"
-                      : "text-tui-text-muted hover:text-white hover:bg-white/5"
+                      ? "text-tui-amber bg-tui-input shadow-lg"
+                      : "text-tui-text-muted hover:text-tui-text hover:bg-tui-input/50"
                   }`}
                 >
                   <Star className={`h-4 w-4 ${onlyFav ? "fill-current" : ""}`} />
@@ -414,16 +414,16 @@ export default function LibraryPage({
             <div className="flex items-center justify-center gap-6 px-6 py-2 w-full xl:w-auto">
               <div className="flex flex-col items-center">
                 <span className="text-[10px] text-tui-text-muted uppercase tracking-wider font-semibold">TOTAL</span>
-                <span className="text-xl font-bold text-white leading-none mt-1">{pageItems.length}</span>
+                <span className="text-xl font-bold text-tui-text leading-none mt-1">{pageItems.length}</span>
               </div>
-              <div className="w-px h-8 bg-white/10"></div>
+              <div className="w-px h-8 bg-tui-border"></div>
               <div className="flex flex-col items-center">
                 <span className="text-[10px] text-tui-text-muted uppercase tracking-wider font-semibold">WATCHED</span>
                 <span className="text-xl font-bold text-tui-green leading-none mt-1">
                   {pageItems.filter((it) => it.status === "watched").length}
                 </span>
               </div>
-              <div className="w-px h-8 bg-white/10"></div>
+              <div className="w-px h-8 bg-tui-border"></div>
               <div className="flex flex-col items-center">
                 <span className="text-[10px] text-tui-text-muted uppercase tracking-wider font-semibold">WISHLIST</span>
                 <span className="text-xl font-bold text-tui-purple leading-none mt-1">
@@ -434,10 +434,10 @@ export default function LibraryPage({
           </div>
 
           {/* BOTTOM ROW: Search & Actions */}
-          <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 bg-zinc-900/40 backdrop-blur-2xl border border-white/10 p-2 shadow-2xl">
+          <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 bg-tui-panel/80 backdrop-blur-2xl border border-tui-border p-2 shadow-2xl">
             
             {/* Search Library */}
-            <div className="flex-1 w-full relative flex items-center bg-black/40 border border-white/5 group transition-all focus-within:border-white/20 focus-within:bg-black/60 overflow-hidden">
+            <div className="flex-1 w-full relative flex items-center bg-tui-input/60 border border-tui-border group transition-all focus-within:border-tui-amber focus-within:bg-tui-input overflow-hidden">
               <span className="absolute left-4 text-tui-text-muted text-xs font-semibold flex items-center gap-2">
                 <Film className="h-4 w-4" />
               </span>
@@ -446,12 +446,12 @@ export default function LibraryPage({
                 onChange={(e) => setQuery(e.target.value)}
                 aria-label="Search your library"
                 placeholder="Search titles, genres, years..."
-                className="w-full h-full min-h-[52px] bg-transparent pl-12 pr-12 text-sm font-medium text-white placeholder:text-tui-text-muted focus:outline-none"
+                className="w-full h-full min-h-[52px] bg-transparent pl-12 pr-12 text-sm font-medium text-tui-text placeholder:text-tui-text-muted focus:outline-none"
               />
               {query && (
                 <button
                   onClick={() => setQuery("")}
-                  className="absolute right-3 p-1.5 text-tui-text-muted hover:text-white hover:bg-white/10 transition-colors"
+                  className="absolute right-3 p-1.5 text-tui-text-muted hover:text-tui-text hover:bg-tui-input transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -462,7 +462,7 @@ export default function LibraryPage({
 
             {/* Actions Toolbar */}
             <div className="flex flex-wrap lg:flex-nowrap items-center gap-2">
-              <div className="flex flex-1 lg:flex-none items-center bg-black/40 border border-white/5 px-2 h-[52px]">
+              <div className="flex flex-1 lg:flex-none items-center bg-tui-input/60 border border-tui-border px-2 h-[52px]">
                 <TmdbSearchInput
                   mediaType={mediaType}
                   onSelect={openFromTmdb}
@@ -471,24 +471,24 @@ export default function LibraryPage({
               </div>
               <button
                 onClick={() => setImportOpen(true)}
-                className="px-5 h-[52px] flex items-center justify-center text-xs font-semibold text-tui-text-muted hover:text-white bg-black/40 border border-white/5 hover:bg-white/10 transition-all uppercase"
+                className="px-5 h-[52px] flex items-center justify-center text-xs font-semibold text-tui-text-muted hover:text-tui-text bg-tui-input/60 border border-tui-border hover:bg-tui-input transition-all uppercase"
               >
                 Import
               </button>
               
-              <div className="flex items-center h-[52px] bg-black/40 border border-white/5">
+              <div className="flex items-center h-[52px] bg-tui-input/60 border border-tui-border">
                 <SortDropdown value={sort} onChange={setSort} />
               </div>
               
               {allGenres.length > 0 && (
-                <div className="flex items-center h-[52px] bg-black/40 border border-white/5">
+                <div className="flex items-center h-[52px] bg-tui-input/60 border border-tui-border">
                   <GenreDropdown value={genreFilter} onChange={setGenreFilter} allGenres={allGenres} />
                 </div>
               )}
 
               <button
                 onClick={() => handleSetViewMode(viewMode === "grid" ? "table" : "grid")}
-                className="px-5 h-[52px] flex items-center justify-center text-xs font-semibold text-tui-text-muted hover:text-white bg-black/40 border border-white/5 hover:bg-white/10 transition-all uppercase"
+                className="px-5 h-[52px] flex items-center justify-center text-xs font-semibold text-tui-text-muted hover:text-tui-text bg-tui-input/60 border border-tui-border hover:bg-tui-input transition-all uppercase"
               >
                 {mounted && viewMode === "table" ? "Grid" : "List"}
               </button>
@@ -498,8 +498,8 @@ export default function LibraryPage({
                   onClick={() => setScanlines(!scanlines)}
                   className={`px-5 h-[52px] flex items-center justify-center text-xs font-semibold transition-all uppercase ${
                     mounted && !scanlines
-                      ? "text-red-400 bg-red-950/40 border border-red-500/20 hover:bg-red-900/60"
-                      : "text-tui-text-muted hover:text-white bg-black/40 border border-white/5 hover:bg-white/10"
+                      ? "text-tui-red bg-tui-red/10 border border-tui-red/20 hover:bg-tui-red/20"
+                      : "text-tui-text-muted hover:text-tui-text bg-tui-input/60 border border-tui-border hover:bg-tui-input"
                   }`}
                 >
                   {mounted && !scanlines ? "CRT Off" : "CRT On"}
