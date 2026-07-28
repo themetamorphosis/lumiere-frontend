@@ -145,11 +145,11 @@ export default function DashboardPage() {
 
   if (!mounted || !ready) {
     return isRetro ? (
-      <div className="max-w-[1440px] mx-auto px-6 lg:px-10 py-8 font-mono text-xs uppercase text-tui-text-muted animate-pulse">
+      <div className="max-w-[1800px] mx-auto px-6 lg:px-10 py-8 font-mono text-xs uppercase text-tui-text-muted animate-pulse">
         &gt; INITIALIZING ANALYTICS DASHBOARD...
       </div>
     ) : (
-      <div className="max-w-[1440px] mx-auto px-6 lg:px-10 py-8 font-sans space-y-6 animate-pulse">
+      <div className="max-w-[1800px] mx-auto px-6 lg:px-10 py-8 font-sans space-y-6 animate-pulse">
         <div className="h-32 bg-tui-panel border border-tui-border rounded-2xl" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -181,7 +181,7 @@ export default function DashboardPage() {
   return (
     <div className="relative min-h-screen w-full bg-[#030303] text-white font-sans overflow-hidden">
       <DashboardParticles />
-      <div className="relative z-10 max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-10 py-8 space-y-8">
+      <div className="relative z-10 max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-10 py-8 space-y-8">
         <DashboardStatsHeader
           greeting={greeting}
           userName={userName}

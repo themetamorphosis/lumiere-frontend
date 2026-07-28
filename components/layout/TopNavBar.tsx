@@ -28,8 +28,6 @@ import { useSession, signOut } from "@/components/SessionProvider";
 import { useRetroTheme } from "./RetroThemeContext";
 
 const THEMES = [
-  { value: "modern-dark", label: "Modern Dark", icon: Moon },
-  { value: "modern-light", label: "Modern Light", icon: Sun },
   { value: "retro-dark", label: "Retro Dark", icon: Terminal },
   { value: "retro-light", label: "Retro Light", icon: Monitor },
 ] as const;
@@ -127,7 +125,7 @@ export default function TopNavBar() {
 
   const isRetro = mounted && theme.startsWith("retro");
   const currentThemeInfo =
-    THEMES.find((t) => t.value === (mounted ? theme : "modern-dark")) ||
+    THEMES.find((t) => t.value === (mounted ? theme : "retro-dark")) ||
     THEMES[0];
 
   return (
@@ -142,7 +140,7 @@ export default function TopNavBar() {
       >
         <div
           suppressHydrationWarning
-          className="mx-auto max-w-[1440px] px-6 lg:px-10 h-20 flex items-center justify-between gap-4"
+          className="mx-auto max-w-[1800px] px-6 lg:px-10 h-20 flex items-center justify-between gap-4"
         >
           {/* ── Left: Logo ── */}
           {isRetro ? (
@@ -526,8 +524,8 @@ export default function TopNavBar() {
             transition={{ duration: 0.2, ease: "easeInOut" }}
             className={
               isRetro
-                ? "md:hidden fixed top-20 left-0 right-0 z-40 overflow-hidden font-mono text-xs uppercase"
-                : "md:hidden fixed top-20 left-0 right-0 z-40 overflow-hidden font-sans text-sm"
+                ? "md:hidden fixed top-[60px] left-0 right-0 z-40 overflow-hidden font-mono text-xs uppercase"
+                : "md:hidden fixed top-[60px] left-0 right-0 z-40 overflow-hidden font-sans text-sm"
             }
           >
             <div

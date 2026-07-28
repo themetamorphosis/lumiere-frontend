@@ -343,14 +343,16 @@ export default function DiscoveryPage() {
         </div>
       )}
 
-      <div className="relative z-10 mx-auto max-w-[1440px] px-6 lg:px-10 pt-8">
-        {/* ── HEADER NAVIGATION ─────────────────────────────────── */}
-        <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center border border-tui-border bg-tui-panel/40 backdrop-blur-md p-3 gap-3 mb-6 rounded-xl">
+      <div className="relative z-10 mx-auto max-w-[1800px] px-3 lg:px-5 pt-8">
+        {/* ── PREMIUM GLASSMORPHISM NAVIGATION (SHARP EDGES) ─────────────────────────────────── */}
+        <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center bg-zinc-900/40 backdrop-blur-2xl border border-white/10 p-2 shadow-2xl mb-8 font-sans gap-4 md:gap-0">
           {/* Left: Section Title */}
-          <div className="flex items-center gap-3">
-            <Compass className="h-5 w-5 text-tui-amber" />
-            <span className="font-mono text-sm font-bold text-tui-text uppercase tracking-wider">
-              DISCOVERY MODULE // EXPLORE
+          <div className="flex items-center gap-3 px-6 py-2">
+            <div className="bg-white/10 p-2">
+              <Compass className="h-5 w-5 text-tui-amber" />
+            </div>
+            <span className="font-bold text-white uppercase tracking-wider text-sm">
+              Discovery Engine
             </span>
           </div>
 
@@ -358,7 +360,7 @@ export default function DiscoveryPage() {
           <div
             role="radiogroup"
             aria-label="Media type"
-            className="flex gap-1 bg-tui-bg/50 border border-tui-border/50 p-1 font-mono text-xs rounded-lg"
+            className="flex items-center bg-black/40 p-1 border border-white/5 flex-1 md:flex-none"
           >
             {(["movie", "tv", "anime"] as MediaType[]).map((type) => {
               const active = mediaType === type;
@@ -370,12 +372,6 @@ export default function DiscoveryPage() {
                   : type === "tv"
                     ? "text-tui-purple"
                     : "text-tui-green";
-              const activeBorder =
-                type === "movie"
-                  ? "border-tui-amber"
-                  : type === "tv"
-                    ? "border-tui-purple"
-                    : "border-tui-green";
               return (
                 <button
                   key={type}
@@ -386,16 +382,14 @@ export default function DiscoveryPage() {
                     setSpotlightItems([]);
                     setLoadingSpotlight(true);
                   }}
-                  className={`px-4 py-2 uppercase border transition-all flex items-center gap-1.5 rounded-lg ${
+                  className={`flex-1 md:flex-none px-6 py-3 text-xs font-semibold uppercase flex items-center justify-center gap-2 transition-all duration-300 ${
                     active
-                      ? `${activeBorder} bg-tui-input text-tui-text font-bold`
-                      : "border-transparent text-tui-text-muted hover:text-tui-text hover:bg-tui-input/20"
+                      ? `${accentColor} bg-white/10 shadow-lg`
+                      : "text-tui-text-muted hover:text-white hover:bg-white/5"
                   }`}
                 >
-                  <Icon
-                    className={`h-3.5 w-3.5 ${active ? accentColor : ""}`}
-                  />
-                  <span>{type === "tv" ? "TV Shows" : type}</span>
+                  <Icon className={`h-4 w-4 ${active ? accentColor : ""}`} />
+                  <span className="hidden sm:inline">{type === "tv" ? "TV Shows" : type}</span>
                 </button>
               );
             })}

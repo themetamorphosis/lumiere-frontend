@@ -4,9 +4,7 @@ import React, { createContext, useContext, useState } from "react";
 
 export type ThemeType =
   | "retro-dark"
-  | "retro-light"
-  | "modern-dark"
-  | "modern-light";
+  | "retro-light";
 
 interface RetroThemeContextType {
   scanlines: boolean;
@@ -31,19 +29,17 @@ export function RetroThemeProvider({
     return saved !== null ? saved === "true" : true;
   });
   const [theme, setTheme] = useState<ThemeType>(() => {
-    if (typeof window === "undefined") return "modern-dark";
+    if (typeof window === "undefined") return "retro-dark";
     const savedTheme = localStorage.getItem("wv-global-theme");
     if (
       savedTheme === "retro-dark" ||
-      savedTheme === "retro-light" ||
-      savedTheme === "modern-dark" ||
-      savedTheme === "modern-light"
+      savedTheme === "retro-light"
     ) {
-      return savedTheme;
+      return savedTheme as ThemeType;
     }
     if (savedTheme === "dark") return "retro-dark";
     if (savedTheme === "light") return "retro-light";
-    return "modern-dark";
+    return "retro-dark";
   });
 
   const handleSetScanlines = (val: boolean) => {
@@ -61,10 +57,8 @@ export function RetroThemeProvider({
   };
 
   const toggleTheme = () => {
-    let nextTheme: ThemeType = "modern-dark";
-    if (theme === "modern-dark") nextTheme = "modern-light";
-    else if (theme === "modern-light") nextTheme = "modern-dark";
-    else if (theme === "retro-dark") nextTheme = "retro-light";
+    let nextTheme: ThemeType = "retro-dark";
+    if (theme === "retro-dark") nextTheme = "retro-light";
     else if (theme === "retro-light") nextTheme = "retro-dark";
 
     handleSetTheme(nextTheme);

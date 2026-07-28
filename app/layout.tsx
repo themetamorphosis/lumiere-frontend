@@ -1,5 +1,5 @@
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import SessionProvider from "@/components/SessionProvider";
 import { GeistSans } from "geist/font/sans";
 import { Toaster } from "sonner";
@@ -7,6 +7,12 @@ import { Toaster } from "sonner";
 export const metadata: Metadata = {
   title: "WatchVault",
   description: "Movies • TV • Anime tracker",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({

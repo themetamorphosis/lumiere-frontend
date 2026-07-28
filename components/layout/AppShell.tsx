@@ -43,7 +43,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       <AiChatModal />
 
       {/* Main content */}
-      <main className="relative z-10">{children}</main>
+      <main className="relative z-10 pt-[60px]">{children}</main>
     </div>
   );
 }

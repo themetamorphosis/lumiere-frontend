@@ -59,11 +59,11 @@ function SortDropdown({
     <div ref={ref} className="relative font-mono text-xs">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 h-8 px-3 border border-tui-border bg-tui-panel text-tui-text-muted hover:border-tui-text hover:text-tui-text transition-all uppercase"
+        className="flex items-center gap-2 px-5 h-full text-xs font-semibold text-tui-text-muted hover:text-white transition-all uppercase hover:bg-white/10"
       >
-        <span>SORT: {current.toUpperCase()}</span>
+        <span>Sort: {current}</span>
         <ChevronDown
-          className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         />
       </button>
 
@@ -136,11 +136,11 @@ function GenreDropdown({
     <div ref={ref} className="relative font-mono text-xs">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 h-8 px-3 border border-tui-border bg-tui-panel text-tui-text-muted hover:border-tui-text hover:text-tui-text transition-all uppercase"
+        className="flex items-center gap-2 px-5 h-full text-xs font-semibold text-tui-text-muted hover:text-white transition-all uppercase hover:bg-white/10"
       >
-        <span>GENRE: {currentLabel}</span>
+        <span>Genre: {currentLabel}</span>
         <ChevronDown
-          className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         />
       </button>
 
@@ -342,183 +342,170 @@ export default function LibraryPage({
           : "font-sans"
       } pb-10`}
     >
-      <div className="relative z-10 mx-auto max-w-[1440px] px-6 lg:px-10 pt-8 pb-10">
-        {/* Monospace Sub-Tabs Bar */}
-        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center border border-tui-border bg-tui-panel p-2 gap-2 mb-6">
-          {/* Left side: Media types */}
-          <div className="flex flex-wrap gap-1">
-            {SUB_TABS.map((tab) => {
-              const isActive = pathname?.startsWith(tab.href);
-              return (
+      <div className="relative z-10 mx-auto max-w-[1800px] px-3 lg:px-5 pt-8 pb-10">
+        {/* PREMIUM GLASSMORPHISM TOOLBAR (SHARP EDGES) */}
+        <div className="flex flex-col gap-4 mb-10 font-sans">
+          
+          {/* TOP ROW: Navigation & Stats */}
+          <div className="flex flex-col xl:flex-row justify-between items-center gap-4 bg-zinc-900/40 backdrop-blur-2xl border border-white/10 p-2 shadow-2xl">
+            
+            {/* Left: Media Types & Categories */}
+            <div className="flex flex-1 flex-col sm:flex-row w-full xl:w-auto gap-2">
+              {/* Media Types Pill */}
+              <div className="flex items-center bg-black/40 p-1 border border-white/5">
+                {SUB_TABS.map((tab) => {
+                  const isActive = pathname?.startsWith(tab.href);
+                  return (
+                    <Link
+                      key={tab.href}
+                      href={tab.href}
+                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 text-xs font-semibold transition-all duration-300 ${
+                        isActive
+                          ? `bg-white/10 ${activeBorderClass.replace('border-', 'text-')} shadow-lg`
+                          : "text-tui-text-muted hover:text-white hover:bg-white/5"
+                      }`}
+                    >
+                      <tab.icon className="h-4 w-4" />
+                      <span className="hidden sm:inline">{tab.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+
+              {/* Categories Pill */}
+              <div className="flex items-center bg-black/40 p-1 border border-white/5 flex-1">
                 <Link
-                  key={tab.href}
-                  href={tab.href}
-                  className={`px-5 py-2.5 text-xs font-mono uppercase border transition-all ${
-                    isActive
-                      ? `${activeBorderClass} bg-tui-input text-tui-text font-bold`
-                      : "border-transparent text-tui-text-muted hover:text-tui-text hover:bg-tui-input/30"
+                  href={`/library/${mediaPath}`}
+                  onClick={() => setOnlyFav(false)}
+                  className={`flex-1 flex items-center justify-center px-4 py-3 text-xs font-semibold transition-all duration-300 ${
+                    mode === "library" && !onlyFav
+                      ? "text-tui-green bg-white/10 shadow-lg"
+                      : "text-tui-text-muted hover:text-white hover:bg-white/5"
                   }`}
                 >
-                  <span className="flex items-center gap-2">
-                    <tab.icon className="h-3.5 w-3.5" />
-                    {tab.label}
-                  </span>
+                  WATCHED
                 </Link>
-              );
-            })}
+                <Link
+                  href={`/wishlist/${mediaPath}`}
+                  onClick={() => setOnlyFav(false)}
+                  className={`flex-1 flex items-center justify-center px-4 py-3 text-xs font-semibold transition-all duration-300 ${
+                    mode === "wishlist" && !onlyFav
+                      ? "text-tui-purple bg-white/10 shadow-lg"
+                      : "text-tui-text-muted hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  WISHLIST
+                </Link>
+                <button
+                  onClick={() => setOnlyFav(!onlyFav)}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-semibold transition-all duration-300 ${
+                    onlyFav
+                      ? "text-tui-amber bg-white/10 shadow-lg"
+                      : "text-tui-text-muted hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  <Star className={`h-4 w-4 ${onlyFav ? "fill-current" : ""}`} />
+                  <span className="hidden sm:inline">FAVORITES</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Right: Stats */}
+            <div className="flex items-center justify-center gap-6 px-6 py-2 w-full xl:w-auto">
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-tui-text-muted uppercase tracking-wider font-semibold">TOTAL</span>
+                <span className="text-xl font-bold text-white leading-none mt-1">{pageItems.length}</span>
+              </div>
+              <div className="w-px h-8 bg-white/10"></div>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-tui-text-muted uppercase tracking-wider font-semibold">WATCHED</span>
+                <span className="text-xl font-bold text-tui-green leading-none mt-1">
+                  {pageItems.filter((it) => it.status === "watched").length}
+                </span>
+              </div>
+              <div className="w-px h-8 bg-white/10"></div>
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-tui-text-muted uppercase tracking-wider font-semibold">WISHLIST</span>
+                <span className="text-xl font-bold text-tui-purple leading-none mt-1">
+                  {pageItems.filter((it) => it.status === "wishlist").length}
+                </span>
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-wrap gap-1 border-t sm:border-t-0 border-tui-border-muted pt-2 sm:pt-0">
-            <Link
-              href={`/library/${mediaPath}`}
-              onClick={() => {
-                setOnlyFav(false);
-              }}
-              className={`px-5 py-2.5 text-xs font-mono uppercase border transition-all ${
-                mode === "library" && !onlyFav
-                  ? "border-tui-green bg-tui-input text-tui-green font-bold"
-                  : "border-transparent text-tui-text-muted hover:text-tui-text hover:bg-tui-input/30"
-              }`}
-            >
-              [ WATCHED ]
-            </Link>
-
-            <Link
-              href={`/wishlist/${mediaPath}`}
-              onClick={() => {
-                setOnlyFav(false);
-              }}
-              className={`px-5 py-2.5 text-xs font-mono uppercase border transition-all ${
-                mode === "wishlist" && !onlyFav
-                  ? "border-tui-purple bg-tui-input text-tui-purple font-bold"
-                  : "border-transparent text-tui-text-muted hover:text-tui-text hover:bg-tui-input/30"
-              }`}
-            >
-              [ WISHLISTED ]
-            </Link>
-
-            <button
-              onClick={() => {
-                setOnlyFav(!onlyFav);
-              }}
-              className={`px-5 py-2.5 text-xs font-mono uppercase border transition-all cursor-pointer flex items-center gap-1.5 ${
-                onlyFav
-                  ? "border-tui-amber bg-tui-input text-tui-amber font-bold"
-                  : "border-transparent text-tui-text-muted hover:text-tui-text hover:bg-tui-input/30"
-              }`}
-            >
-              <Star
-                className={`h-3.5 w-3.5 ${onlyFav ? "fill-current" : ""}`}
+          {/* BOTTOM ROW: Search & Actions */}
+          <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 bg-zinc-900/40 backdrop-blur-2xl border border-white/10 p-2 shadow-2xl">
+            
+            {/* Search Library */}
+            <div className="flex-1 w-full relative flex items-center bg-black/40 border border-white/5 group transition-all focus-within:border-white/20 focus-within:bg-black/60 overflow-hidden">
+              <span className="absolute left-4 text-tui-text-muted text-xs font-semibold flex items-center gap-2">
+                <Film className="h-4 w-4" />
+              </span>
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Search your library"
+                placeholder="Search titles, genres, years..."
+                className="w-full h-full min-h-[52px] bg-transparent pl-12 pr-12 text-sm font-medium text-white placeholder:text-tui-text-muted focus:outline-none"
               />
-              <span>FAVORITES</span>
-            </button>
-          </div>
-        </div>
+              {query && (
+                <button
+                  onClick={() => setQuery("")}
+                  className="absolute right-3 p-1.5 text-tui-text-muted hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
 
-        {/* TUI Stats Grid */}
-        <div className="grid grid-cols-3 border border-tui-border bg-tui-input font-mono mb-6 divide-x divide-tui-border text-center">
-          <div className="py-3">
-            <div className="text-[10px] text-tui-text-muted uppercase tracking-widest">
-              TOTAL TITLES
-            </div>
-            <div className="text-lg font-bold text-tui-text">
-              {pageItems.length}
-            </div>
-          </div>
-          <div className="py-3">
-            <div className="text-[10px] text-tui-text-muted uppercase tracking-widest">
-              WATCHED
-            </div>
-            <div className="text-lg font-bold text-tui-green">
-              {pageItems.filter((it) => it.status === "watched").length}
-            </div>
-          </div>
-          <div className="py-3">
-            <div className="text-[10px] text-tui-text-muted uppercase tracking-widest">
-              WISHLIST
-            </div>
-            <div className="text-lg font-bold text-tui-purple">
-              {pageItems.filter((it) => it.status === "wishlist").length}
-            </div>
-          </div>
-        </div>
-
-        {/* TUI Toolbar Controls */}
-        <div className="flex flex-col gap-4 mb-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4 border border-tui-border bg-tui-input font-mono text-xs">
-            {/* Left toolbar: Search TMDB and Import */}
-            <div className="flex items-center gap-4 flex-wrap">
-              <TmdbSearchInput
-                mediaType={mediaType}
-                onSelect={openFromTmdb}
-                placeholder={`+ ADD TMDB TITLE...`}
-              />
+            {/* Actions Toolbar */}
+            <div className="flex flex-wrap lg:flex-nowrap items-center gap-2">
+              <div className="flex flex-1 lg:flex-none items-center bg-black/40 border border-white/5 px-2 h-[52px]">
+                <TmdbSearchInput
+                  mediaType={mediaType}
+                  onSelect={openFromTmdb}
+                  placeholder="Add from TMDB..."
+                />
+              </div>
               <button
                 onClick={() => setImportOpen(true)}
-                className="px-3 py-1.5 border border-tui-border text-tui-text-muted bg-tui-panel hover:border-tui-text hover:text-tui-text transition-all uppercase animate-none"
+                className="px-5 h-[52px] flex items-center justify-center text-xs font-semibold text-tui-text-muted hover:text-white bg-black/40 border border-white/5 hover:bg-white/10 transition-all uppercase"
               >
-                [IMPORT]
+                Import
               </button>
-            </div>
-
-            {/* Right toolbar: Sort, Favorites, View Mode, Scanlines */}
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Sort selection */}
-              <SortDropdown value={sort} onChange={setSort} />
-
-              {/* Genre selection */}
+              
+              <div className="flex items-center h-[52px] bg-black/40 border border-white/5">
+                <SortDropdown value={sort} onChange={setSort} />
+              </div>
+              
               {allGenres.length > 0 && (
-                <GenreDropdown
-                  value={genreFilter}
-                  onChange={setGenreFilter}
-                  allGenres={allGenres}
-                />
+                <div className="flex items-center h-[52px] bg-black/40 border border-white/5">
+                  <GenreDropdown value={genreFilter} onChange={setGenreFilter} allGenres={allGenres} />
+                </div>
               )}
 
-              {/* View Mode Toggle */}
               <button
-                onClick={() =>
-                  handleSetViewMode(viewMode === "grid" ? "table" : "grid")
-                }
-                className="px-3 py-1.5 border border-tui-border text-tui-text-muted bg-tui-panel hover:border-tui-text hover:text-tui-text transition-all"
+                onClick={() => handleSetViewMode(viewMode === "grid" ? "table" : "grid")}
+                className="px-5 h-[52px] flex items-center justify-center text-xs font-semibold text-tui-text-muted hover:text-white bg-black/40 border border-white/5 hover:bg-white/10 transition-all uppercase"
               >
-                {mounted && viewMode === "table" ? "[:: GRID]" : "[= LIST]"}
+                {mounted && viewMode === "table" ? "Grid" : "List"}
               </button>
 
-              {/* Scanlines Toggle */}
-              <button
-                onClick={() => setScanlines(!scanlines)}
-                className={`px-3 py-1.5 border transition-all ${
-                  mounted && !scanlines
-                    ? "border-red-950 text-red-500 bg-red-950/10 hover:border-red-900"
-                    : "border-tui-border text-tui-text-muted bg-tui-panel hover:border-tui-text hover:text-tui-text"
-                }`}
-              >
-                {mounted && !scanlines ? "[CRT: OFF]" : "[CRT: ON]"}
-              </button>
+              {isRetro && (
+                <button
+                  onClick={() => setScanlines(!scanlines)}
+                  className={`px-5 h-[52px] flex items-center justify-center text-xs font-semibold transition-all uppercase ${
+                    mounted && !scanlines
+                      ? "text-red-400 bg-red-950/40 border border-red-500/20 hover:bg-red-900/60"
+                      : "text-tui-text-muted hover:text-white bg-black/40 border border-white/5 hover:bg-white/10"
+                  }`}
+                >
+                  {mounted && !scanlines ? "CRT Off" : "CRT On"}
+                </button>
+              )}
             </div>
-          </div>
-
-          {/* Search bar */}
-          <div className="relative font-mono">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-tui-text-muted/60 text-xs">
-              SEARCH &gt;
-            </span>
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="Search your library"
-              placeholder="QUERY TITLE, GENRES, YEARS..."
-              className="w-full bg-tui-input border border-tui-border pl-24 pr-10 py-2.5 text-xs text-tui-text placeholder:text-tui-text-muted/30 focus:border-tui-text focus:bg-tui-input outline-none transition-all"
-            />
-            {query && (
-              <button
-                onClick={() => setQuery("")}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-tui-text-muted hover:text-tui-text"
-              >
-                [X]
-              </button>
-            )}
           </div>
         </div>
 
