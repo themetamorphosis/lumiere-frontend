@@ -1,7 +1,7 @@
-# WatchVault Blueprint
+# Lumière Blueprint
 
 ## Overview
-WatchVault is a personal watchlist tracker for Movies, TV Shows, and Anime. It allows users to manage their media journey with features like tracking watched status, adding to wishlists, marking favorites, and organizing by custom lists or genres. It uses Next.js App Router, Tailwind CSS, and Framer Motion for a fluid, cinematic UI.
+Lumière is a personal watchlist tracker for Movies, TV Shows, and Anime. It allows users to manage their media journey with features like tracking watched status, adding to wishlists, marking favorites, and organizing by custom lists or genres. It uses Next.js App Router, Tailwind CSS, and Framer Motion for a fluid, cinematic UI.
 
 ## Project Outline
 - **Design & Style**: Apple-inspired minimal aesthetic combined with Netflix's cinematic feel and dark glassmorphism. Fluid animations via Framer Motion. 

@@ -347,7 +347,7 @@ export default function LibraryPage({
         <div className="flex flex-col gap-4 mb-10 font-sans">
           
           {/* TOP ROW: Navigation & Stats */}
-          <div className="flex flex-col xl:flex-row justify-between items-center gap-4 bg-tui-panel/80 backdrop-blur-2xl border border-tui-border p-2 shadow-2xl">
+          <div className={`flex flex-col xl:flex-row justify-between items-center gap-4 bg-tui-panel/80 border border-tui-border p-2 ${isRetro ? '' : 'backdrop-blur-2xl shadow-2xl'}`}>
             
             {/* Left: Media Types & Categories */}
             <div className="flex flex-1 flex-col sm:flex-row w-full xl:w-auto gap-2">
@@ -434,7 +434,7 @@ export default function LibraryPage({
           </div>
 
           {/* BOTTOM ROW: Search & Actions */}
-          <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 bg-tui-panel/80 backdrop-blur-2xl border border-tui-border p-2 shadow-2xl">
+          <div className={`flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 bg-tui-panel/80 border border-tui-border p-2 ${isRetro ? '' : 'backdrop-blur-2xl shadow-2xl'}`}>
             
             {/* Search Library */}
             <div className="flex-1 w-full relative flex items-center bg-tui-input/60 border border-tui-border group transition-all focus-within:border-tui-amber focus-within:bg-tui-input overflow-hidden">

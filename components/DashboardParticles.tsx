@@ -44,8 +44,8 @@ function Particles({ count = 250 }: { count?: number }) {
     const handleMouseMove = (event: MouseEvent) => {
       const x = (event.clientX / window.innerWidth) * 2 - 1;
       const y = -(event.clientY / window.innerHeight) * 2 + 1;
-      mouse.current.targetX = x * 0.4;
-      mouse.current.targetY = y * 0.4;
+      mouse.current.targetX = x * 0.15;
+      mouse.current.targetY = y * 0.15;
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -58,14 +58,14 @@ function Particles({ count = 250 }: { count?: number }) {
     if (!pointsRef.current) return;
 
     // Smoothly interpolate mouse target coordinates (lerp)
-    mouse.current.x += (mouse.current.targetX - mouse.current.x) * 0.05;
-    mouse.current.y += (mouse.current.targetY - mouse.current.y) * 0.05;
+    mouse.current.x += (mouse.current.targetX - mouse.current.x) * 0.03;
+    mouse.current.y += (mouse.current.targetY - mouse.current.y) * 0.03;
 
     // Slowly rotate points
     pointsRef.current.rotation.y =
-      state.clock.elapsedTime * 0.015 + mouse.current.x;
+      state.clock.elapsedTime * 0.006 + mouse.current.x;
     pointsRef.current.rotation.x =
-      state.clock.elapsedTime * 0.008 + mouse.current.y;
+      state.clock.elapsedTime * 0.003 + mouse.current.y;
   });
 
   return (

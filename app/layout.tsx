@@ -5,7 +5,7 @@ import { GeistSans } from "geist/font/sans";
 import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
-  title: "WatchVault",
+  title: "Lumière",
   description: "Movies • TV • Anime tracker",
 };
 

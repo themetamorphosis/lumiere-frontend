@@ -65,7 +65,7 @@ export default function SpotlightHero({ item, onShuffle }: SpotlightHeroProps) {
 
                 <p className="text-xs sm:text-sm text-neutral-400 line-clamp-3 mb-4 max-w-2xl leading-relaxed">
                   {item.description ||
-                    "No description logged. This cinematic entry is safely cataloged inside your digital WatchVault."}
+                    "No description logged. This cinematic entry is safely cataloged inside your digital Lumière."}
                 </p>
 
                 <div className="flex flex-wrap items-center gap-3">
@@ -110,7 +110,7 @@ export default function SpotlightHero({ item, onShuffle }: SpotlightHeroProps) {
         <div className="flex flex-col items-center justify-center text-center h-full py-12">
           <Film className="h-12 w-12 text-neutral-600 mb-3" />
           <h2 className="text-lg font-bold text-white uppercase tracking-wide">
-            WatchVault Spotlight
+            Lumière Spotlight
           </h2>
           <p className="text-xs text-neutral-400 max-w-xs mt-1">
             Log titles to your catalog and highlight your favorites to showcase

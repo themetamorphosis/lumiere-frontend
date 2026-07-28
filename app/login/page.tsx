@@ -57,7 +57,7 @@ export default function LoginPage() {
             {/* Header */}
             <header className="auth-header">
                 <Link href="/" className="auth-logo">
-                    WATCHVAULT®
+                    LUMIÈRE®
                 </Link>
             </header>
 

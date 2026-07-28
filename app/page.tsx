@@ -86,7 +86,7 @@ export default function LandingPage() {
           <div className="lp-header-inner">
             <div className="lp-header-left">
               <Link href="/" className="lp-logo">
-                WATCHVAULT®
+                LUMIÈRE®
               </Link>
               <button
                 onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}
@@ -323,7 +323,7 @@ export default function LandingPage() {
                 </Reveal>
                 <Reveal delay={0.2}>
                   <p className="lp-about-text">
-                    WatchVault is a personal media tracker designed for movie
+                    Lumière is a personal media tracker designed for movie
                     buffs, binge-watchers, and anime enthusiasts. No social
                     clutter, no algorithmic noise — just your library, your way.
                   </p>
@@ -388,7 +388,7 @@ export default function LandingPage() {
         {/* ━━━ FOOTER ━━━ */}
         <footer className="lp-footer">
           <div className="lp-container lp-footer-inner">
-            <span className="lp-footer-copy">© 2026 WATCHVAULT</span>
+            <span className="lp-footer-copy">© 2026 LUMIÈRE</span>
             <div className="lp-footer-links">
               {session ? (
                 <>

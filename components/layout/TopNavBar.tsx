@@ -149,7 +149,7 @@ export default function TopNavBar() {
               className="flex items-center gap-1 mr-4 flex-shrink-0"
             >
               <span className="text-[#f0a500] dark:text-tui-amber font-bold text-sm md:text-base">
-                guest@watchvault
+                guest@lumiere
               </span>
               <span className="text-nav-text opacity-60 text-sm md:text-base">
                 :
@@ -167,7 +167,7 @@ export default function TopNavBar() {
               className="flex items-center gap-1.5 mr-4 flex-shrink-0 select-none"
             >
               <span className="text-[17px] font-bold tracking-tight text-tui-text">
-                WatchVault
+                Lumière
               </span>
               <span className="text-[15px] font-normal tracking-tight text-tui-text-muted">
                 Personal

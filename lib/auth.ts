@@ -4,7 +4,7 @@ export const API_BASE =
 export async function signOut({ callbackUrl }: { callbackUrl?: string } = {}) {
   if (typeof window !== "undefined") {
     try {
-      // Clear WatchVault-specific cache keys
+      // Clear Lumière-specific cache keys
       const keysToRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);

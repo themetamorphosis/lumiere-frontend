@@ -1176,7 +1176,7 @@ export default function DemoCard() {
             </div>
             <div className="ml-2 flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-[9px] text-white/30">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400/60" />
-              watchvault.app
+              lumiere.app
             </div>
           </div>
           <div className="flex items-center gap-1.5 text-[9px] text-white/25">

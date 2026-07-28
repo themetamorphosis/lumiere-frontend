@@ -52,7 +52,7 @@ export default function RegisterPage() {
             {/* Header */}
             <header className="auth-header">
                 <Link href="/" className="auth-logo">
-                    WATCHVAULT®
+                    LUMIÈRE®
                 </Link>
             </header>
 

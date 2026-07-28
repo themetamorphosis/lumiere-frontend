@@ -677,10 +677,7 @@ export default function DetailOverlay({
                                   )}
                                 </div>
                                 <div className="text-left leading-normal min-w-0 flex flex-col justify-center">
-                                  <a
-                                    href={`https://www.google.com/search?q=${encodeURIComponent(c.name)}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                  <span
                                     className={`text-xs font-bold truncate transition-colors cursor-pointer block ${
                                       isRetro
                                         ? "text-tui-text hover:text-tui-amber hover:underline"
@@ -688,7 +685,7 @@ export default function DetailOverlay({
                                     }`}
                                   >
                                     {c.name}
-                                  </a>
+                                  </span>
                                   <span
                                     className={`text-[11px] truncate mt-0.5 block ${
                                       isRetro
