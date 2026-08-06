@@ -34,11 +34,10 @@ export default function GenreChart({
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-2 py-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all cursor-pointer ${
-                  activeTab === tab
+                className={`px-2 py-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all cursor-pointer ${activeTab === tab
                     ? "bg-white/10 text-white"
                     : "text-neutral-500 hover:text-neutral-300"
-                }`}
+                  }`}
               >
                 {tab}
               </button>

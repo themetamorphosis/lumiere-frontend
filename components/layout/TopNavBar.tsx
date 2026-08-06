@@ -55,7 +55,7 @@ const NAV_TABS = [
       { href: "/wishlist/anime", label: "Anime", icon: Sparkles },
     ],
   },
-  { href: "/discovery", label: "Discovery", icon: Compass, comingSoon: true },
+  { href: "/discovery", label: "Discovery", icon: Compass },
   { href: "/social", label: "Social", icon: Users, comingSoon: true },
 ];
 
@@ -70,7 +70,7 @@ export default function TopNavBar() {
   const [, setToastExiting] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => { setTimeout(() => setMounted(true), 0); }, []);
   const profileRef = useRef<HTMLDivElement>(null);
   const themeRef = useRef<HTMLDivElement>(null);
   const toastShownRef = useRef<Set<string>>(new Set());
@@ -140,7 +140,7 @@ export default function TopNavBar() {
       >
         <div
           suppressHydrationWarning
-          className="mx-auto max-w-[1800px] px-6 lg:px-10 h-20 flex items-center justify-between gap-4"
+          className="mx-auto max-w-[1800px] px-4 sm:px-6 lg:px-10 h-20 flex items-center justify-between gap-4"
         >
           {/* ── Left: Logo ── */}
           {isRetro ? (
@@ -228,8 +228,11 @@ export default function TopNavBar() {
                               ? "/wishlist/movies"
                               : tab.href
                         }
-                        onClick={() => {
-                          if (tab.comingSoon) handleComingSoonClick(tab.label);
+                        onClick={(e) => {
+                          if (tab.comingSoon) {
+                            e.preventDefault();
+                            handleComingSoonClick(tab.label);
+                          }
                         }}
                         className={
                           isRetro
@@ -555,8 +558,11 @@ export default function TopNavBar() {
                             ? "/wishlist/movies"
                             : tab.href
                       }
-                      onClick={() => {
-                        if (tab.comingSoon) handleComingSoonClick(tab.label);
+                      onClick={(e) => {
+                        if (tab.comingSoon) {
+                          e.preventDefault();
+                          handleComingSoonClick(tab.label);
+                        }
                         setMobileNavOpen(false);
                       }}
                       className={

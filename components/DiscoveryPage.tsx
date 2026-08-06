@@ -3,13 +3,10 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { Film, Tv, Sparkles, SlidersHorizontal, Compass } from "lucide-react";
+import { Film, Tv, Sparkles, Compass } from "lucide-react";
 import { useRetroTheme } from "@/components/layout/RetroThemeContext";
 import {
   getTrendingMedia,
-  getPopularMedia,
-  getTopRatedMedia,
-  discoverMedia,
   getMediaDetails,
   type TMDBSearchResult,
   type TMDBMediaDetails,
@@ -24,47 +21,39 @@ import type { Item, MediaType, Status } from "@/lib/types";
 import {
   MOVIE_GENRES,
   TV_GENRES,
-  type ListType,
 } from "@/lib/discovery-constants";
-import ExplorerFilters from "@/components/discovery/ExplorerFilters";
-import { SkeletonGrid } from "@/components/ui/Skeleton";
 import DetailOverlay from "@/components/discovery/DetailOverlay";
-import MediaDiscoverCard from "@/components/discovery/DiscoveryCard";
 import DiscoverySpotlight from "@/components/discovery/DiscoverySpotlight";
+import MediaCarouselRow, { type RowDefinition } from "@/components/discovery/MediaCarouselRow";
+
+const INITIAL_ROWS: RowDefinition[] = [
+  { id: "trending", title: "Trending Now", type: "trending" },
+  { id: "popular", title: "Popular Choices", type: "popular" },
+  { id: "top-rated", title: "Top Rated", type: "top-rated" },
+];
 
 export default function DiscoveryPage() {
   const { theme, scanlines } = useRetroTheme();
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => { setTimeout(() => setMounted(true), 0); }, []);
 
   const isRetro = mounted && theme.startsWith("retro");
 
-  /* Tab navigation */
-  const [activeTab, setActiveTab] = useState<ListType>("trending");
   const [mediaType, setMediaType] = useState<MediaType>("movie");
-
-  /* Data lists & Pagination */
-  const [results, setResults] = useState<TMDBSearchResult[]>([]);
   const [watchlist, setWatchlist] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState<number>(1);
-  const [hasMore, setHasMore] = useState(true);
+
+  /* Infinite Scroll Rows */
+  const [displayedRows, setDisplayedRows] = useState<RowDefinition[]>(INITIAL_ROWS);
+  const [genreIndex, setGenreIndex] = useState(0);
+  const [hasMoreRows, setHasMoreRows] = useState(true);
 
   /* Featured Spotlight Carousel */
   const [spotlightItems, setSpotlightItems] = useState<TMDBSearchResult[]>([]);
   const [spotlightIdx, setSpotlightIdx] = useState<number>(0);
   const [loadingSpotlight, setLoadingSpotlight] = useState(true);
 
-  /* Custom Explorer Filter states */
-  const [genreFilter, setGenreFilter] = useState<string>("");
-  const [decadeFilter, setDecadeFilter] = useState<number | "">("");
-  const [sortBy, setSortBy] = useState<string>("popularity.desc");
-  const [showFilters, setShowFilters] = useState(true);
-
   /* Deep Details state */
-  const [selectedItem, setSelectedItem] = useState<TMDBSearchResult | null>(
-    null,
-  );
+  const [selectedItem, setSelectedItem] = useState<TMDBSearchResult | null>(null);
   const [details, setDetails] = useState<TMDBMediaDetails | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [playTrailer, setPlayTrailer] = useState(false);
@@ -116,7 +105,6 @@ export default function DiscoveryPage() {
     loadWatchlist();
   }, [loadWatchlist]);
 
-  /* Check if item is already in watchlist */
   const getWatchlistItem = useCallback(
     (res: TMDBSearchResult | null) => {
       if (!res) return undefined;
@@ -132,6 +120,8 @@ export default function DiscoveryPage() {
   /* ── Fetch Spotlight Items (Top Trending) ─────────────────── */
   useEffect(() => {
     const controller = new AbortController();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoadingSpotlight(true);
     getTrendingMedia(mediaType, "week", controller.signal)
       .then((res) => {
         if (!controller.signal.aborted && res.length > 0) {
@@ -151,7 +141,6 @@ export default function DiscoveryPage() {
     return () => controller.abort();
   }, [mediaType]);
 
-  /* Auto rotating spotlight slides */
   useEffect(() => {
     if (spotlightItems.length === 0 || loadingSpotlight) return;
     const interval = setInterval(() => {
@@ -162,84 +151,75 @@ export default function DiscoveryPage() {
 
   const spotlightItem = spotlightItems[spotlightIdx];
 
-  /* ── Fetch Grid Content (Based on Active Tab) ─────────────── */
-  const loadDataRef = useRef<
-    (pageNum: number, append?: boolean) => Promise<void>
-  >(() => Promise.resolve());
+  /* ── Infinite Scroll Row Logic ───────────────────────────── */
+  // Reset rows when mediaType changes
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDisplayedRows(INITIAL_ROWS);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setGenreIndex(0);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHasMoreRows(true);
+  }, [mediaType]);
 
-  const loadData = useCallback(
-    async (pageNum: number, append: boolean = false) => {
-      setLoading(true);
-      const controller = new AbortController();
+  // Safely use a ref for the index so we don't have side effects inside state updaters
+  const genreIndexRef = useRef(genreIndex);
+  useEffect(() => {
+    genreIndexRef.current = genreIndex;
+  }, [genreIndex]);
 
-      try {
-        let res: TMDBSearchResult[] = [];
-        if (activeTab === "trending") {
-          res = await getTrendingMedia(mediaType, "week", controller.signal);
-          setHasMore(false);
-        } else if (activeTab === "popular") {
-          res = await getPopularMedia(mediaType, pageNum, controller.signal);
-          setHasMore(res.length > 0);
-        } else if (activeTab === "top-rated") {
-          res = await getTopRatedMedia(mediaType, pageNum, controller.signal);
-          setHasMore(res.length > 0);
-        } else if (activeTab === "explorer") {
-          res = await discoverMedia(
-            {
-              type: mediaType,
-              genre: genreFilter,
-              decade: decadeFilter || undefined,
-              sortBy: sortBy,
-              page: pageNum,
-            },
-            controller.signal,
-          );
-          setHasMore(res.length > 0);
-        }
+  const handleLoadMoreRows = useCallback(() => {
+    const genres = mediaType === "movie" ? MOVIE_GENRES : TV_GENRES;
+    const currentIdx = genreIndexRef.current;
+    
+    if (currentIdx >= genres.length) {
+      setHasMoreRows(false);
+      return;
+    }
 
-        if (!controller.signal.aborted) {
-          if (append) {
-            setResults((prev) => [...prev, ...res]);
-          } else {
-            setResults(res);
-          }
-          setLoading(false);
+    // Load next 2 genres
+    const nextGenres = genres.slice(currentIdx, currentIdx + 2);
+    const newRows: RowDefinition[] = nextGenres.map(g => ({
+      id: `genre-${g.id}`,
+      title: g.name,
+      type: "genre",
+      genreId: g.id,
+    }));
+
+    setDisplayedRows(prev => {
+      // Prevent duplicates by checking IDs
+      const uniqueNewRows = newRows.filter(nr => !prev.some(pr => pr.id === nr.id));
+      return [...prev, ...uniqueNewRows];
+    });
+    setGenreIndex(currentIdx + 2);
+    
+    if (currentIdx + 2 >= genres.length) {
+      setHasMoreRows(false);
+    }
+  }, [mediaType]);
+
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const sentinelRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (!hasMoreRows) return;
+      if (observerRef.current) observerRef.current.disconnect();
+
+      observerRef.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          handleLoadMoreRows();
         }
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") return;
-        if (!controller.signal.aborted) {
-          console.error("Error loading discovery grid:", err);
-          setLoading(false);
-        }
-      }
+      });
+
+      if (node) observerRef.current.observe(node);
     },
-    [activeTab, mediaType, genreFilter, decadeFilter, sortBy],
+    [hasMoreRows, handleLoadMoreRows]
   );
-
-  // Keep ref in sync so stale closures always call the latest loadData
-  useEffect(() => {
-    loadDataRef.current = loadData;
-  }, [loadData]);
-
-  // Auto-load when tab, media type, or filters change
-  useEffect(() => {
-    setPage(1);
-    loadDataRef.current(1, false);
-  }, [activeTab, mediaType, genreFilter, decadeFilter, sortBy]);
-
-  /* Load more items */
-  const handleLoadMore = () => {
-    const nextPage = page + 1;
-    setPage(nextPage);
-    loadData(nextPage, true);
-  };
 
   /* ── Fetch Deep Details for Selected Item ───────────────── */
   useEffect(() => {
     if (!selectedItem) return;
 
     const controller = new AbortController();
-
     getMediaDetails(
       selectedItem.tmdbId,
       selectedItem.mediaType as MediaType,
@@ -310,17 +290,15 @@ export default function DiscoveryPage() {
     }
   };
 
-  const currentGenres = mediaType === "movie" ? MOVIE_GENRES : TV_GENRES;
-
   return (
     <div
       className={`w-full min-h-screen bg-tui-bg text-tui-text ${
         isRetro
           ? `retro-container ${scanlines ? "retro-scanlines" : ""}`
           : "font-sans selection:bg-violet-500/30 selection:text-white"
-      } pb-16 relative`}
+      } pb-16 relative overflow-x-hidden`}
     >
-      {/* ── CINEMATIC FULL-BLEED BACKDROP OVERLAY (Modern Theme) ── */}
+      {/* ── CINEMATIC FULL-BLEED BACKDROP OVERLAY ── */}
       {!isRetro && spotlightItem && (
         <div className="absolute top-[-64px] left-0 w-full h-[620px] z-0 overflow-hidden pointer-events-none">
           <AnimatePresence mode="wait">
@@ -336,17 +314,14 @@ export default function DiscoveryPage() {
               />
             )}
           </AnimatePresence>
-          {/* Linear fade blending into body background */}
           <div className="absolute inset-0 bg-gradient-to-t from-tui-bg via-tui-bg/70 via-tui-bg/20 to-transparent" />
-          {/* Horizontal left/right fade masks to focus center visual */}
           <div className="absolute inset-0 bg-gradient-to-r from-tui-bg/75 via-transparent to-tui-bg/40" />
         </div>
       )}
 
-      <div className="relative z-10 mx-auto max-w-[1800px] px-3 lg:px-5 pt-8">
-        {/* ── PREMIUM GLASSMORPHISM NAVIGATION (SHARP EDGES) ─────────────────────────────────── */}
-        <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center bg-zinc-900/40 backdrop-blur-2xl border border-white/10 p-2 shadow-2xl mb-8 font-sans gap-4 md:gap-0">
-          {/* Left: Section Title */}
+      <div className="relative z-10 mx-auto max-w-[1800px] pt-8">
+        {/* ── TOP NAV BAR & MEDIA SELECTOR ─────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center bg-zinc-900/40 backdrop-blur-2xl border border-white/10 p-2 shadow-2xl mb-8 font-sans gap-4 sm:gap-0 mx-3 lg:mx-5">
           <div className="flex items-center gap-3 px-6 py-2">
             <div className="bg-white/10 p-2">
               <Compass className="h-5 w-5 text-tui-amber" />
@@ -356,11 +331,9 @@ export default function DiscoveryPage() {
             </span>
           </div>
 
-          {/* Right: Media Type selector */}
           <div
             role="radiogroup"
-            aria-label="Media type"
-            className="flex items-center bg-black/40 p-1 border border-white/5 flex-1 md:flex-none"
+            className="flex flex-col sm:flex-row items-stretch sm:items-center bg-black/40 p-1 border border-white/5 flex-1 sm:flex-none gap-1 sm:gap-0"
           >
             {(["movie", "tv", "anime"] as MediaType[]).map((type) => {
               const active = mediaType === type;
@@ -375,186 +348,65 @@ export default function DiscoveryPage() {
               return (
                 <button
                   key={type}
-                  onClick={() => {
-                    setMediaType(type);
-                    setGenreFilter("");
-                    setDecadeFilter("");
-                    setSpotlightItems([]);
-                    setLoadingSpotlight(true);
-                  }}
-                  className={`flex-1 md:flex-none px-6 py-3 text-xs font-semibold uppercase flex items-center justify-center gap-2 transition-all duration-300 ${
+                  onClick={() => setMediaType(type)}
+                  className={`flex-1 sm:flex-none px-6 py-3 text-xs font-semibold uppercase flex items-center justify-center gap-2 transition-all duration-300 ${
                     active
                       ? `${accentColor} bg-white/10 shadow-lg`
                       : "text-tui-text-muted hover:text-white hover:bg-white/5"
                   }`}
                 >
                   <Icon className={`h-4 w-4 ${active ? accentColor : ""}`} />
-                  <span className="hidden sm:inline">{type === "tv" ? "TV Shows" : type}</span>
+                  <span className="inline">{type === "tv" ? "TV Shows" : type}</span>
                 </button>
               );
             })}
           </div>
         </div>
 
-        <DiscoverySpotlight
-          spotlightItem={spotlightItem}
-          spotlightItems={spotlightItems}
-          spotlightIdx={spotlightIdx}
-          loadingSpotlight={loadingSpotlight}
-          mediaType={mediaType}
-          isRetro={isRetro}
-          watchlistItem={getWatchlistItem(spotlightItem)}
-          onSelect={handleSelectItem}
-          onAdd={handleAddToWatchlist}
-          onRemove={handleRemoveFromWatchlist}
-        />
-
-        {/* ── UNIFIED FILTER CONTROLLER TABS ────────────────────── */}
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 border-b border-tui-border pb-4 mb-6">
-          {/* Glassmorphic Sliding Pill Selector */}
-          {!isRetro ? (
-            <div className="flex bg-zinc-900/60 backdrop-blur-md border border-white/10 rounded-full p-1 font-mono text-[11px] relative">
-              {(
-                [
-                  { id: "trending", label: "Trending" },
-                  { id: "popular", label: "Popular" },
-                  { id: "top-rated", label: "Top Rated" },
-                  { id: "explorer", label: "Custom Explorer" },
-                ] as { id: ListType; label: string }[]
-              ).map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`relative px-5 py-2 rounded-full uppercase tracking-wider transition-colors cursor-pointer z-10 ${
-                    activeTab === tab.id
-                      ? "text-zinc-950 font-bold"
-                      : "text-zinc-400 hover:text-white"
-                  }`}
-                >
-                  <span className="relative z-10">{tab.label}</span>
-                  {activeTab === tab.id && (
-                    <motion.div
-                      layoutId="activeTabBg"
-                      className="absolute inset-0 bg-white rounded-full z-0"
-                      transition={{
-                        type: "spring",
-                        stiffness: 320,
-                        damping: 28,
-                      }}
-                    />
-                  )}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="flex border border-tui-border bg-tui-bg p-0.5 font-mono text-xs">
-              {(
-                [
-                  { id: "trending", label: "Trending" },
-                  { id: "popular", label: "Popular" },
-                  { id: "top-rated", label: "Top Rated" },
-                  { id: "explorer", label: "Explorer" },
-                ] as { id: ListType; label: string }[]
-              ).map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-1.5 uppercase transition-all ${
-                    activeTab === tab.id
-                      ? "bg-tui-input text-tui-amber font-bold"
-                      : "text-tui-text-muted hover:text-tui-text"
-                  }`}
-                >
-                  [ {tab.label.toUpperCase()} ]
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Toolbar controller for filters */}
-          {activeTab === "explorer" && (
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-1.5 h-8 px-4 border border-tui-border bg-tui-panel font-mono text-xs text-tui-text-muted hover:border-tui-text hover:text-tui-text transition-all uppercase rounded-lg"
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              <span>{showFilters ? "HIDE FILTERS" : "SHOW FILTERS"}</span>
-            </button>
-          )}
+        <div className="px-3 lg:px-5">
+          <DiscoverySpotlight
+            spotlightItem={spotlightItem}
+            spotlightItems={spotlightItems}
+            spotlightIdx={spotlightIdx}
+            setSpotlightIdx={setSpotlightIdx}
+            loadingSpotlight={loadingSpotlight}
+            mediaType={mediaType}
+            isRetro={isRetro}
+            watchlistItem={getWatchlistItem(spotlightItem)}
+            onSelect={handleSelectItem}
+            onAdd={handleAddToWatchlist}
+            onRemove={handleRemoveFromWatchlist}
+          />
         </div>
 
-        {/* ── DYNAMIC VERTICAL GALLERY GRID ──────────────────────── */}
-        <div className="flex flex-col lg:flex-row gap-6 items-start text-left">
-          {/* 1. Explorer Filter sidebar */}
-          {activeTab === "explorer" && showFilters && (
-            <ExplorerFilters
-              genreFilter={genreFilter}
-              decadeFilter={decadeFilter}
-              sortBy={sortBy}
-              genres={currentGenres}
-              onGenreChange={(v) => setGenreFilter(v)}
-              onDecadeChange={(v) => setDecadeFilter(v)}
-              onSortChange={(v) => setSortBy(v)}
-              onReset={() => {
-                setGenreFilter("");
-                setDecadeFilter("");
-                setSortBy("popularity.desc");
-              }}
+        {/* ── UNLIMITED HORIZONTAL CAROUSEL ROWS ──────────────────────── */}
+        <div className="flex flex-col w-full mt-6">
+          {displayedRows.map((row) => (
+            <MediaCarouselRow
+              key={row.id}
+              row={row}
+              mediaType={mediaType}
+              isRetro={isRetro}
+              onOpen={handleSelectItem}
+              onAdd={handleAddToWatchlist}
+              onRemove={handleRemoveFromWatchlist}
+              getWatchlistItem={getWatchlistItem}
             />
+          ))}
+
+          {/* Infinite Scroll Sentinel for Rows */}
+          {hasMoreRows ? (
+            <div ref={sentinelRef} className="flex justify-center pt-8 pb-16 w-full">
+              <div className="flex items-center gap-3 font-mono text-xs text-tui-amber uppercase tracking-widest">
+                <div className="w-4 h-4 border-2 border-tui-amber border-t-transparent rounded-full animate-spin" />
+                [ LOADING_CATEGORIES... ]
+              </div>
+            </div>
+          ) : (
+            <div className="text-center pt-8 pb-16 font-mono text-xs text-tui-text-muted uppercase tracking-widest">
+              [ END_OF_CATEGORIES ]
+            </div>
           )}
-
-          {/* 2. Unified Grid */}
-          <div className="flex-1 w-full space-y-6">
-            {loading && page === 1 ? (
-              <SkeletonGrid count={15} />
-            ) : results.length > 0 ? (
-              <div className="space-y-8">
-                <motion.div
-                  layout="position"
-                  className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-5"
-                >
-                  {results.map((item, index) => (
-                    <div key={item.tmdbId} className="relative">
-                      {/* Top Popularity indicator chart for Tab: Popular (similar to Netflix top charts, but in the grid) */}
-                      {activeTab === "popular" && (
-                        <div className="absolute top-2 left-2 z-10 w-6 h-6 flex items-center justify-center rounded-full bg-zinc-950/80 border border-white/10 text-[10px] font-mono font-bold text-tui-amber shadow-md">
-                          #{index + 1}
-                        </div>
-                      )}
-
-                      <MediaDiscoverCard
-                        item={item}
-                        isRetro={isRetro}
-                        onOpen={() => handleSelectItem(item)}
-                        onAdd={(status: Status) =>
-                          handleAddToWatchlist(item, status)
-                        }
-                        onRemove={(id: string) => handleRemoveFromWatchlist(id)}
-                        dbItem={getWatchlistItem(item)}
-                      />
-                    </div>
-                  ))}
-                </motion.div>
-
-                {/* Load More (Only for paginated lists: popular, top-rated, discover) */}
-                {hasMore && (
-                  <div className="flex justify-center pt-4">
-                    <button
-                      onClick={handleLoadMore}
-                      disabled={loading}
-                      className="px-6 py-2.5 font-mono text-xs uppercase border border-tui-border bg-tui-panel text-tui-text-muted hover:border-tui-text hover:text-tui-text disabled:opacity-50 transition-all rounded-lg cursor-pointer"
-                    >
-                      {loading ? "[ LOADING... ]" : "[ LOAD MORE TITLES ]"}
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-20 font-mono text-xs text-tui-text-muted">
-                [ NO RESULTS FOUND ]
-              </div>
-            )}
-          </div>
         </div>
       </div>
 

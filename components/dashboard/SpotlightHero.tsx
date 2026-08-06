@@ -24,9 +24,8 @@ export default function SpotlightHero({ item, onShuffle }: SpotlightHeroProps) {
             <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/40 to-transparent" />
           </div>
 
-          <div className="relative z-10 flex flex-col sm:flex-row gap-6 items-start justify-between h-full w-full">
-            {/* Poster Display */}
-            <div className="relative shrink-0 rounded-2xl overflow-hidden border border-white/10 shadow-2xl transition-all duration-500 hover:scale-[1.03] hover:border-amber-500/40 aspect-[2/3] w-[130px] md:w-[160px]">
+          <div className="relative z-10 flex flex-col sm:flex-row gap-4 sm:gap-6 items-start justify-between h-full w-full">
+            <div className="relative shrink-0 rounded-2xl overflow-hidden border border-white/10 shadow-2xl transition-all duration-500 hover:scale-[1.03] hover:border-amber-500/40 aspect-[2/3] w-[100px] sm:w-[130px] md:w-[160px]">
               {item.coverUrl ? (
                 <img
                   src={item.coverUrl}
@@ -34,14 +33,13 @@ export default function SpotlightHero({ item, onShuffle }: SpotlightHeroProps) {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full bg-neutral-800 flex items-center justify-center text-[10px] text-neutral-400 font-mono uppercase">
-                  No Poster
+                <div className="w-full h-full flex items-center justify-center bg-black/60 text-[10px] text-white/40 uppercase font-mono tracking-widest text-center p-2">
+                  No Cover
                 </div>
               )}
             </div>
-
-            {/* Metadata */}
-            <div className="flex-1 min-w-0 flex flex-col justify-between h-full mt-4 sm:mt-0">
+            
+            <div className="flex-1 min-w-0 flex flex-col justify-between h-full mt-2 sm:mt-0">
               <div>
                 <div className="flex flex-wrap items-center gap-2 text-[10px] text-neutral-400 font-mono uppercase tracking-widest mb-3">
                   <span className="bg-amber-500/10 border border-amber-500/25 text-amber-400 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">

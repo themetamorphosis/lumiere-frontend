@@ -212,21 +212,11 @@ export default function TmdbSearchInput({
             if (results.length > 0) setIsDesktopOpen(true);
           }}
           placeholder={placeholder}
-          className={`
-                      h-8
-                      text-tui-text
-                      pl-12 pr-8
-                      text-xs uppercase
-                      placeholder:text-tui-text-muted/40
-                      outline-none
-                      border
-                      transition-all duration-150
-                      ${
-                        isExpanded
-                          ? "w-[300px] bg-tui-input border-tui-text"
-                          : "w-[220px] bg-tui-panel border-tui-border hover:border-tui-text-muted focus:w-[300px] focus:border-tui-text focus:bg-tui-input"
-                      }
-                    `}
+          className={`h-8 text-tui-text pl-12 pr-8 text-xs uppercase placeholder:text-tui-text-muted/40 outline-none border transition-all duration-150 w-full sm:w-[220px] bg-tui-panel border-tui-border hover:border-tui-text-muted focus:sm:w-[300px] focus:border-tui-text focus:bg-tui-input ${
+                        (query.length > 0 || isDesktopOpen)
+                          ? "sm:w-[300px] bg-tui-input border-tui-text"
+                          : ""
+                      }`}
           autoComplete="off"
           spellCheck={false}
         />
@@ -254,12 +244,7 @@ export default function TmdbSearchInput({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 4 }}
             transition={{ duration: 0.15 }}
-            className="
-                          hidden sm:block absolute left-0 top-full mt-1.5
-                          w-[420px] max-h-[380px] overflow-y-auto
-                          bg-tui-panel border border-tui-border
-                          shadow-2xl overscroll-contain
-                        "
+            className="hidden sm:block absolute left-0 top-full mt-1.5 w-full sm:w-[420px] max-h-[380px] overflow-y-auto bg-tui-panel border border-tui-border shadow-2xl overscroll-contain"
             style={{
               scrollbarWidth: "thin",
               scrollbarColor: "rgba(255,255,255,0.1) transparent",

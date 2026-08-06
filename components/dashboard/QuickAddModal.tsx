@@ -37,7 +37,7 @@ export default function QuickAddModal({
         <AnimatePresence>
             {selectedAddResult && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -73,11 +73,10 @@ export default function QuickAddModal({
                                             key={st}
                                             type="button"
                                             onClick={() => setStatus(st)}
-                                            className={`py-2.5 border text-xs font-bold rounded-xl uppercase tracking-wider transition-all cursor-pointer ${
-                                                quickAddStatus === st
+                                            className={`py-2.5 border text-xs font-bold rounded-xl uppercase tracking-wider transition-all cursor-pointer ${quickAddStatus === st
                                                     ? "border-emerald-500 text-emerald-400 bg-emerald-500/10"
                                                     : "border-white/10 text-neutral-400 hover:text-white hover:border-white/20"
-                                            }`}
+                                                }`}
                                         >
                                             {st === "watched" ? <Check className="h-4 w-4 mx-auto mb-1" /> : null}
                                             {st}
@@ -108,11 +107,10 @@ export default function QuickAddModal({
                                 <button
                                     type="button"
                                     onClick={() => setFav(!quickAddFav)}
-                                    className={`w-full py-2 px-3 border text-xs font-bold rounded-xl uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                                        quickAddFav 
-                                            ? "border-rose-500 text-rose-400 bg-rose-500/10" 
+                                    className={`w-full py-2 px-3 border text-xs font-bold rounded-xl uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${quickAddFav
+                                            ? "border-rose-500 text-rose-400 bg-rose-500/10"
                                             : "border-white/10 text-neutral-400 hover:text-white"
-                                    }`}
+                                        }`}
                                 >
                                     <Heart className={`h-4 w-4 ${quickAddFav ? "fill-current" : ""}`} />
                                     <span>{quickAddFav ? "Spotlighted" : "Spotlight"}</span>

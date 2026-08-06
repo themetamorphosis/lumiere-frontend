@@ -3,7 +3,7 @@
 import React from "react";
 import TopNavBar from "./TopNavBar";
 import AiChatModal from "../AiChatModal";
-import { RetroThemeProvider, useRetroTheme } from "./RetroThemeContext";
+import { useRetroTheme } from "./RetroThemeContext";
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const { scanlines, theme } = useRetroTheme();
@@ -14,7 +14,6 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   return (
     <div
       suppressHydrationWarning
-      data-theme={theme}
       className={`relative min-h-screen bg-tui-bg text-tui-text ${
         isRetro
           ? `retro-container ${scanlines ? "retro-scanlines" : ""}`
@@ -49,9 +48,5 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 }
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  return (
-    <RetroThemeProvider>
-      <AppShellInner>{children}</AppShellInner>
-    </RetroThemeProvider>
-  );
+  return <AppShellInner>{children}</AppShellInner>;
 }

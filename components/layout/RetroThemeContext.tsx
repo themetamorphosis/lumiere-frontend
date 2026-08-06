@@ -1,10 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 
-export type ThemeType =
-  | "retro-dark"
-  | "retro-light";
+export type ThemeType = "retro-dark" | "retro-light";
 
 interface RetroThemeContextType {
   scanlines: boolean;
@@ -23,44 +21,53 @@ export function RetroThemeProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [scanlines, setScanlines] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    const saved = localStorage.getItem("wv-global-scanlines");
-    return saved !== null ? saved === "true" : true;
-  });
-  const [theme, setTheme] = useState<ThemeType>(() => {
-    if (typeof window === "undefined") return "retro-dark";
-    const savedTheme = localStorage.getItem("wv-global-theme");
-    if (
-      savedTheme === "retro-dark" ||
-      savedTheme === "retro-light"
-    ) {
-      return savedTheme as ThemeType;
-    }
-    if (savedTheme === "dark") return "retro-dark";
-    if (savedTheme === "light") return "retro-light";
-    return "retro-dark";
-  });
+  // Always start with the SSR-safe default — NO localStorage in initial state
+  const [theme, setThemeState] = useState<ThemeType>("retro-dark");
+  const [scanlines, setScanlinesState] = useState<boolean>(true);
+
+  // After hydration, read the real saved values and apply them
+  useEffect(() => {
+    try {
+      const savedTheme = localStorage.getItem("wv-global-theme");
+      let resolved: ThemeType = "retro-dark";
+      if (savedTheme === "retro-dark" || savedTheme === "retro-light") {
+        resolved = savedTheme as ThemeType;
+      } else if (savedTheme === "light") {
+        resolved = "retro-light";
+      }
+      setTimeout(() => {
+        setThemeState(resolved);
+        const savedScanlines = localStorage.getItem("wv-global-scanlines");
+        setScanlinesState(savedScanlines !== null ? savedScanlines === "true" : true);
+      }, 0);
+    } catch {}
+  }, []);
+
+  // Keep document.documentElement[data-theme] in sync — this is what CSS selectors target
+  useEffect(() => {
+    try {
+      document.documentElement.setAttribute("data-theme", theme);
+    } catch {}
+  }, [theme]);
 
   const handleSetScanlines = (val: boolean) => {
-    setScanlines(val);
+    setScanlinesState(val);
     try {
       localStorage.setItem("wv-global-scanlines", String(val));
     } catch {}
   };
 
   const handleSetTheme = (newTheme: ThemeType) => {
-    setTheme(newTheme);
+    setThemeState(newTheme);
     try {
       localStorage.setItem("wv-global-theme", newTheme);
+      document.documentElement.setAttribute("data-theme", newTheme);
     } catch {}
   };
 
   const toggleTheme = () => {
-    let nextTheme: ThemeType = "retro-dark";
-    if (theme === "retro-dark") nextTheme = "retro-light";
-    else if (theme === "retro-light") nextTheme = "retro-dark";
-
+    const nextTheme: ThemeType =
+      theme === "retro-dark" ? "retro-light" : "retro-dark";
     handleSetTheme(nextTheme);
   };
 

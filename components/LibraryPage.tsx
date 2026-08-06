@@ -233,6 +233,8 @@ export default function LibraryPage({
     loadMoreRef,
   } = useLibraryFilters(items, mediaType, mode);
 
+  console.log("LibraryPage render!", { mode, mediaType, itemsLength: items.length, renderItemsLength: renderItems.length, ready, mounted });
+
   const { scanlines, setScanlines, theme } = useRetroTheme();
 
   const [editOpen, setEditOpen] = useState(false);
