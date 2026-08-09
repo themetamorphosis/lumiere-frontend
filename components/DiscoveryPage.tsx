@@ -33,12 +33,10 @@ const INITIAL_ROWS: RowDefinition[] = [
 
 export default function DiscoveryPage() {
   const { theme, scanlines } = useRetroTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setTimeout(() => setMounted(true), 0);
-  }, []);
-
-  const isRetro = mounted && theme.startsWith("retro");
+  // The provider's SSR default is already a retro theme, so server and first
+  // client render agree — gating this on a mount flag only bought a frame of
+  // the modern layout before it snapped to retro.
+  const isRetro = theme.startsWith("retro");
 
   const [mediaType, setMediaType] = useState<MediaType>("movie");
   const [watchlist, setWatchlist] = useState<Item[]>([]);

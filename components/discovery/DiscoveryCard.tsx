@@ -6,6 +6,10 @@ import type { TMDBSearchResult } from "@/lib/tmdb";
 import type { Item, Status } from "@/lib/types";
 import TMDBImage from "@/components/ui/TMDBImage";
 
+/** Matches the fluid column widths MediaCarouselRow lays these cards out in. */
+const POSTER_SIZES =
+  "(max-width: 640px) 44vw, (max-width: 1024px) 24vw, (max-width: 1536px) 18vw, 280px";
+
 /* ── COMPACT MEDIA CARD FOR DISCOVERY GRIDS ─────────────────────────── */
 interface MediaDiscoverCardProps {
   item: TMDBSearchResult;
@@ -67,6 +71,7 @@ export default function MediaDiscoverCard({
               src={item.posterUrl}
               alt={item.title}
               fill
+              sizes={POSTER_SIZES}
               className="w-full h-full object-cover"
             />
           ) : (
@@ -153,6 +158,7 @@ export default function MediaDiscoverCard({
             src={item.posterUrl}
             alt={item.title}
             fill
+            sizes={POSTER_SIZES}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
