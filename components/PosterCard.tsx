@@ -1,5 +1,6 @@
 "use client";
 
+import TMDBImage from "@/components/ui/TMDBImage";
 import React from "react";
 import { motion } from "framer-motion";
 import { Star, Heart, Eye } from "lucide-react";
@@ -50,13 +51,13 @@ export default function PosterCard({ item, onOpen, onFav }: PosterCardProps) {
       aria-label={`Open ${item.title}`}
     >
       {/* Poster Image */}
-      <div className="aspect-[2/3] w-full bg-white/[0.03]">
+      <div className="relative aspect-[2/3] w-full bg-white/[0.03]">
         {item.coverUrl ? (
-          <img
+          <TMDBImage
             src={item.coverUrl}
             alt={item.title}
-            className="h-full w-full object-cover"
-            loading="lazy"
+            className="object-cover"
+            fill
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-900 to-zinc-950">

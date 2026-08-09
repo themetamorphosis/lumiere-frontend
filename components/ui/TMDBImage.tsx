@@ -12,6 +12,9 @@ interface TMDBImageProps {
   fill?: boolean;
   priority?: boolean;
   fallback?: React.ReactNode;
+  /** Required for `fill` images so the browser can pick a sensible source. */
+  sizes?: string;
+  onLoad?: () => void;
 }
 
 /**
@@ -27,6 +30,8 @@ export default function TMDBImage({
   fill = false,
   priority = false,
   fallback,
+  sizes,
+  onLoad,
 }: TMDBImageProps) {
   const [failed, setFailed] = useState(false);
 
@@ -46,11 +51,19 @@ export default function TMDBImage({
     alt,
     className,
     onError: () => setFailed(true),
+    onLoad,
     priority,
   };
 
   if (fill) {
-    return <Image {...imgProps} alt={alt} fill />;
+    return (
+      <Image
+        {...imgProps}
+        alt={alt}
+        fill
+        sizes={sizes ?? "(max-width: 768px) 50vw, 200px"}
+      />
+    );
   }
 
   return (

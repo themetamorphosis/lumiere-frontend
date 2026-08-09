@@ -233,8 +233,6 @@ export default function LibraryPage({
     loadMoreRef,
   } = useLibraryFilters(items, mediaType, mode);
 
-  console.log("LibraryPage render!", { mode, mediaType, itemsLength: items.length, renderItemsLength: renderItems.length, ready, mounted });
-
   const { scanlines, setScanlines, theme } = useRetroTheme();
 
   const [editOpen, setEditOpen] = useState(false);
@@ -347,10 +345,10 @@ export default function LibraryPage({
       <div className="relative z-10 mx-auto max-w-[1800px] px-3 lg:px-5 pt-8 pb-10">
         {/* PREMIUM GLASSMORPHISM TOOLBAR (SHARP EDGES) */}
         <div className="flex flex-col gap-4 mb-10 font-sans">
-          
           {/* TOP ROW: Navigation & Stats */}
-          <div className={`flex flex-col xl:flex-row justify-between items-center gap-4 bg-tui-panel/80 border border-tui-border p-2 ${isRetro ? '' : 'backdrop-blur-2xl shadow-2xl'}`}>
-            
+          <div
+            className={`flex flex-col xl:flex-row justify-between items-center gap-4 bg-tui-panel/80 border border-tui-border p-2 ${isRetro ? "" : "backdrop-blur-2xl shadow-2xl"}`}
+          >
             {/* Left: Media Types & Categories */}
             <div className="flex flex-1 flex-col sm:flex-row w-full xl:w-auto gap-2">
               {/* Media Types Pill */}
@@ -363,7 +361,7 @@ export default function LibraryPage({
                       href={tab.href}
                       className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 text-xs font-semibold transition-all duration-300 ${
                         isActive
-                          ? `bg-tui-input ${activeBorderClass.replace('border-', 'text-')} shadow-lg`
+                          ? `bg-tui-input ${activeBorderClass.replace("border-", "text-")} shadow-lg`
                           : "text-tui-text-muted hover:text-tui-text hover:bg-tui-input/50"
                       }`}
                     >
@@ -406,7 +404,9 @@ export default function LibraryPage({
                       : "text-tui-text-muted hover:text-tui-text hover:bg-tui-input/50"
                   }`}
                 >
-                  <Star className={`h-4 w-4 ${onlyFav ? "fill-current" : ""}`} />
+                  <Star
+                    className={`h-4 w-4 ${onlyFav ? "fill-current" : ""}`}
+                  />
                   <span className="hidden sm:inline">FAVORITES</span>
                 </button>
               </div>
@@ -415,19 +415,27 @@ export default function LibraryPage({
             {/* Right: Stats */}
             <div className="flex items-center justify-center gap-6 px-6 py-2 w-full xl:w-auto">
               <div className="flex flex-col items-center">
-                <span className="text-[10px] text-tui-text-muted uppercase tracking-wider font-semibold">TOTAL</span>
-                <span className="text-xl font-bold text-tui-text leading-none mt-1">{pageItems.length}</span>
+                <span className="text-[10px] text-tui-text-muted uppercase tracking-wider font-semibold">
+                  TOTAL
+                </span>
+                <span className="text-xl font-bold text-tui-text leading-none mt-1">
+                  {pageItems.length}
+                </span>
               </div>
               <div className="w-px h-8 bg-tui-border"></div>
               <div className="flex flex-col items-center">
-                <span className="text-[10px] text-tui-text-muted uppercase tracking-wider font-semibold">WATCHED</span>
+                <span className="text-[10px] text-tui-text-muted uppercase tracking-wider font-semibold">
+                  WATCHED
+                </span>
                 <span className="text-xl font-bold text-tui-green leading-none mt-1">
                   {pageItems.filter((it) => it.status === "watched").length}
                 </span>
               </div>
               <div className="w-px h-8 bg-tui-border"></div>
               <div className="flex flex-col items-center">
-                <span className="text-[10px] text-tui-text-muted uppercase tracking-wider font-semibold">WISHLIST</span>
+                <span className="text-[10px] text-tui-text-muted uppercase tracking-wider font-semibold">
+                  WISHLIST
+                </span>
                 <span className="text-xl font-bold text-tui-purple leading-none mt-1">
                   {pageItems.filter((it) => it.status === "wishlist").length}
                 </span>
@@ -436,8 +444,9 @@ export default function LibraryPage({
           </div>
 
           {/* BOTTOM ROW: Search & Actions */}
-          <div className={`flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 bg-tui-panel/80 border border-tui-border p-2 ${isRetro ? '' : 'backdrop-blur-2xl shadow-2xl'}`}>
-            
+          <div
+            className={`flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 bg-tui-panel/80 border border-tui-border p-2 ${isRetro ? "" : "backdrop-blur-2xl shadow-2xl"}`}
+          >
             {/* Search Library */}
             <div className="flex-1 w-full relative flex items-center bg-tui-input/60 border border-tui-border group transition-all focus-within:border-tui-amber focus-within:bg-tui-input overflow-hidden">
               <span className="absolute left-4 text-tui-text-muted text-xs font-semibold flex items-center gap-2">
@@ -455,8 +464,18 @@ export default function LibraryPage({
                   onClick={() => setQuery("")}
                   className="absolute right-3 p-1.5 text-tui-text-muted hover:text-tui-text hover:bg-tui-input transition-colors"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               )}
@@ -477,19 +496,25 @@ export default function LibraryPage({
               >
                 Import
               </button>
-              
+
               <div className="flex items-center h-[52px] bg-tui-input/60 border border-tui-border">
                 <SortDropdown value={sort} onChange={setSort} />
               </div>
-              
+
               {allGenres.length > 0 && (
                 <div className="flex items-center h-[52px] bg-tui-input/60 border border-tui-border">
-                  <GenreDropdown value={genreFilter} onChange={setGenreFilter} allGenres={allGenres} />
+                  <GenreDropdown
+                    value={genreFilter}
+                    onChange={setGenreFilter}
+                    allGenres={allGenres}
+                  />
                 </div>
               )}
 
               <button
-                onClick={() => handleSetViewMode(viewMode === "grid" ? "table" : "grid")}
+                onClick={() =>
+                  handleSetViewMode(viewMode === "grid" ? "table" : "grid")
+                }
                 className="px-5 h-[52px] flex items-center justify-center text-xs font-semibold text-tui-text-muted hover:text-tui-text bg-tui-input/60 border border-tui-border hover:bg-tui-input transition-all uppercase"
               >
                 {mounted && viewMode === "table" ? "Grid" : "List"}

@@ -1,5 +1,6 @@
 "use client";
 
+import TMDBImage from "@/components/ui/TMDBImage";
 import React from "react";
 import Link from "next/link";
 import { Heart, ChevronRight, Star } from "lucide-react";
@@ -32,10 +33,12 @@ export default function FavoritesDeck({ items }: FavoritesDeckProps) {
                         >
                             <div className="aspect-[2/3] w-full bg-neutral-950 overflow-hidden relative">
                                 {item.coverUrl ? (
-                                    <img
+                                    <TMDBImage
                                         src={item.coverUrl}
                                         alt={item.title}
-                                        className="w-full h-full object-cover filter brightness-95 group-hover:brightness-100 transition-all duration-300"
+                                        className="object-cover filter brightness-95 group-hover:brightness-100 transition-all duration-300"
+                                        fill
+                                        sizes="120px"
                                     />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center text-[10px] text-neutral-400 uppercase font-mono bg-neutral-900">

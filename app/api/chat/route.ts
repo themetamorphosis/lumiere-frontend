@@ -5,6 +5,9 @@ const AI_API_URL =
   process.env.AI_API_URL || "https://api.deepseek.com/chat/completions";
 const AI_MODEL = process.env.AI_MODEL || "deepseek-chat";
 
+/** Max model round-trips per request before we stop dispatching tools. */
+const MAX_TOOL_TURNS = 8;
+
 interface ToolCall {
   id: string;
   type: string;
@@ -35,8 +38,11 @@ async function executeTool(
       if (!res.ok)
         return { library: [], error: "Failed to fetch user library." };
       const data = await res.json();
+      // GET /watchlist returns { items, total, limit, offset, has_more } —
+      // not a bare array. Calling .map on the envelope threw on every request.
+      const items = Array.isArray(data) ? data : (data.items ?? []);
       return {
-        library: data.map(
+        library: items.map(
           (item: {
             title: string;
             mediaType: string;
@@ -186,8 +192,10 @@ export async function POST(req: Request) {
           ...messages,
         ];
 
+        // Bounded: the loop only exits when the model stops requesting tools,
+        // so a model that keeps calling them would spin until maxDuration.
         let keepGoing = true;
-        while (keepGoing) {
+        for (let turn = 0; keepGoing && turn < MAX_TOOL_TURNS; turn++) {
           const apiRes = await fetch(AI_API_URL, {
             method: "POST",
             headers: {

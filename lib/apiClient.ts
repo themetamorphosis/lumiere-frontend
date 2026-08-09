@@ -1,5 +1,7 @@
 import { API_BASE, signOut } from "@/lib/auth";
 
+const DEFAULT_TIMEOUT_MS = 10_000;
+
 export async function fetchApi(endpoint: string, options: RequestInit = {}) {
     const url = endpoint.startsWith("http") ? endpoint : `${API_BASE}${endpoint}`;
 
@@ -13,6 +15,9 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}) {
     }
 
     const res = await fetch(url, {
+        // Callers that pass their own signal (e.g. AbortController for cancellable
+        // row fetches) override this via the spread below.
+        signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
         ...options,
         headers,
         credentials: "include",

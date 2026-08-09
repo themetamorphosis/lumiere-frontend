@@ -2,6 +2,7 @@
 
 import { authedFetch } from "@/lib/serverFetch";
 import { API_BASE } from "@/lib/auth";
+import { clearSessionCookies, setSessionCookies } from "@/lib/session";
 
 export async function getSession() {
   try {
@@ -14,9 +15,14 @@ export async function getSession() {
 }
 
 export async function logout() {
-  const { cookies } = await import("next/headers");
-  const cookieStore = await cookies();
-  cookieStore.delete("auth_token");
+  // Revoke server-side first so the refresh-token family is invalidated, then
+  // drop the cookies. A failure here must not block local sign-out.
+  try {
+    await authedFetch(`/auth/logout`, { method: "POST" });
+  } catch {
+    // ignore — cookies are cleared regardless
+  }
+  await clearSessionCookies();
 }
 
 export async function login(prevState: unknown, formData: FormData) {
@@ -43,17 +49,10 @@ export async function login(prevState: unknown, formData: FormData) {
     }
 
     const data = await res.json();
-    const token = data.access_token;
 
-    const { cookies } = await import("next/headers");
-    const cookieStore = await cookies();
-    cookieStore.set("auth_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      path: "/",
-      maxAge: 60 * 60 * 24,
-    });
+    // Persist the refresh token too — without it the session simply dies when
+    // the access token expires, with no way to renew.
+    await setSessionCookies(data);
 
     return { success: true };
   } catch (error) {

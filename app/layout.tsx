@@ -4,6 +4,7 @@ import SessionProvider from "@/components/SessionProvider";
 import { GeistSans } from "geist/font/sans";
 import { Toaster } from "sonner";
 import { RetroThemeProvider } from "@/components/layout/RetroThemeContext";
+import MotionProvider from "@/components/MotionProvider";
 
 export const metadata: Metadata = {
   title: "Lumière",
@@ -54,11 +55,13 @@ export default function RootLayout({
         >
           Skip to content
         </a>
-        <RetroThemeProvider>
-          <SessionProvider>
-            <main id="main-content">{children}</main>
-          </SessionProvider>
-        </RetroThemeProvider>
+        <MotionProvider>
+          <RetroThemeProvider>
+            <SessionProvider>
+              <main id="main-content">{children}</main>
+            </SessionProvider>
+          </RetroThemeProvider>
+        </MotionProvider>
         <Toaster position="top-right" richColors />
       </body>
     </html>

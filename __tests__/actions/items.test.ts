@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { z } from "zod";
 
 vi.mock("@/lib/serverFetch", () => ({
   authedFetch: vi.fn(),
@@ -38,9 +39,10 @@ describe("Server Actions: items", () => {
       const rawItems = [
         {
           id: "1",
+          userId: "user-1",
           title: "Test",
-          mediaType: "movie",
-          status: "pending",
+          mediaType: "movie" as const,
+          status: "pending" as const,
           favorite: false,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -70,8 +72,8 @@ describe("Server Actions: items", () => {
       mockAuthedFetch.mockResolvedValue(jsonResponse([{ bad: "data" }]));
       mockSafeParse.mockReturnValue({
         success: false,
-        error: "validation failed" as any,
-      });
+        error: new z.ZodError([]),
+      } as ReturnType<typeof safeParseWatchlistItems>);
 
       const result = await getItems();
 

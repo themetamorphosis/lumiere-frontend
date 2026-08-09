@@ -16,7 +16,7 @@ export type RowDefinition = {
   id: string;
   title: string;
   type: "trending" | "popular" | "top-rated" | "genre";
-  genreId?: string;
+  genreId?: number;
 };
 
 interface MediaCarouselRowProps {
@@ -60,7 +60,7 @@ export default function MediaCarouselRow({
         } else if (row.type === "genre" && row.title) {
           data = await discoverMedia(
             { type: mediaType, genre: row.title, page: 1 },
-            controller.signal
+            controller.signal,
           );
         }
 
@@ -70,7 +70,7 @@ export default function MediaCarouselRow({
         } else if (mounted) {
           setLoading(false);
         }
-      } catch (err) {
+      } catch {
         if (mounted) setLoading(false);
       }
     };
@@ -90,7 +90,10 @@ export default function MediaCarouselRow({
         direction === "left"
           ? scrollLeft - clientWidth * 0.75
           : scrollLeft + clientWidth * 0.75;
-      scrollContainerRef.current.scrollTo({ left: scrollTo, behavior: "smooth" });
+      scrollContainerRef.current.scrollTo({
+        left: scrollTo,
+        behavior: "smooth",
+      });
     }
   };
 
@@ -149,11 +152,15 @@ export default function MediaCarouselRow({
         </button>
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         .hide-scrollbar::-webkit-scrollbar {
           display: none;
         }
-      `}} />
+      `,
+        }}
+      />
     </div>
   );
 }

@@ -18,13 +18,12 @@ import {
   toggleFavorite,
 } from "@/app/actions/items";
 import type { Item, MediaType, Status } from "@/lib/types";
-import {
-  MOVIE_GENRES,
-  TV_GENRES,
-} from "@/lib/discovery-constants";
+import { MOVIE_GENRES, TV_GENRES } from "@/lib/discovery-constants";
 import DetailOverlay from "@/components/discovery/DetailOverlay";
 import DiscoverySpotlight from "@/components/discovery/DiscoverySpotlight";
-import MediaCarouselRow, { type RowDefinition } from "@/components/discovery/MediaCarouselRow";
+import MediaCarouselRow, {
+  type RowDefinition,
+} from "@/components/discovery/MediaCarouselRow";
 
 const INITIAL_ROWS: RowDefinition[] = [
   { id: "trending", title: "Trending Now", type: "trending" },
@@ -35,7 +34,9 @@ const INITIAL_ROWS: RowDefinition[] = [
 export default function DiscoveryPage() {
   const { theme, scanlines } = useRetroTheme();
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setTimeout(() => setMounted(true), 0); }, []);
+  useEffect(() => {
+    setTimeout(() => setMounted(true), 0);
+  }, []);
 
   const isRetro = mounted && theme.startsWith("retro");
 
@@ -43,7 +44,8 @@ export default function DiscoveryPage() {
   const [watchlist, setWatchlist] = useState<Item[]>([]);
 
   /* Infinite Scroll Rows */
-  const [displayedRows, setDisplayedRows] = useState<RowDefinition[]>(INITIAL_ROWS);
+  const [displayedRows, setDisplayedRows] =
+    useState<RowDefinition[]>(INITIAL_ROWS);
   const [genreIndex, setGenreIndex] = useState(0);
   const [hasMoreRows, setHasMoreRows] = useState(true);
 
@@ -53,7 +55,9 @@ export default function DiscoveryPage() {
   const [loadingSpotlight, setLoadingSpotlight] = useState(true);
 
   /* Deep Details state */
-  const [selectedItem, setSelectedItem] = useState<TMDBSearchResult | null>(null);
+  const [selectedItem, setSelectedItem] = useState<TMDBSearchResult | null>(
+    null,
+  );
   const [details, setDetails] = useState<TMDBMediaDetails | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [playTrailer, setPlayTrailer] = useState(false);
@@ -156,9 +160,7 @@ export default function DiscoveryPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDisplayedRows(INITIAL_ROWS);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setGenreIndex(0);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHasMoreRows(true);
   }, [mediaType]);
 
@@ -171,7 +173,7 @@ export default function DiscoveryPage() {
   const handleLoadMoreRows = useCallback(() => {
     const genres = mediaType === "movie" ? MOVIE_GENRES : TV_GENRES;
     const currentIdx = genreIndexRef.current;
-    
+
     if (currentIdx >= genres.length) {
       setHasMoreRows(false);
       return;
@@ -179,20 +181,22 @@ export default function DiscoveryPage() {
 
     // Load next 2 genres
     const nextGenres = genres.slice(currentIdx, currentIdx + 2);
-    const newRows: RowDefinition[] = nextGenres.map(g => ({
+    const newRows: RowDefinition[] = nextGenres.map((g) => ({
       id: `genre-${g.id}`,
       title: g.name,
       type: "genre",
       genreId: g.id,
     }));
 
-    setDisplayedRows(prev => {
+    setDisplayedRows((prev) => {
       // Prevent duplicates by checking IDs
-      const uniqueNewRows = newRows.filter(nr => !prev.some(pr => pr.id === nr.id));
+      const uniqueNewRows = newRows.filter(
+        (nr) => !prev.some((pr) => pr.id === nr.id),
+      );
       return [...prev, ...uniqueNewRows];
     });
     setGenreIndex(currentIdx + 2);
-    
+
     if (currentIdx + 2 >= genres.length) {
       setHasMoreRows(false);
     }
@@ -212,7 +216,7 @@ export default function DiscoveryPage() {
 
       if (node) observerRef.current.observe(node);
     },
-    [hasMoreRows, handleLoadMoreRows]
+    [hasMoreRows, handleLoadMoreRows],
   );
 
   /* ── Fetch Deep Details for Selected Item ───────────────── */
@@ -356,7 +360,9 @@ export default function DiscoveryPage() {
                   }`}
                 >
                   <Icon className={`h-4 w-4 ${active ? accentColor : ""}`} />
-                  <span className="inline">{type === "tv" ? "TV Shows" : type}</span>
+                  <span className="inline">
+                    {type === "tv" ? "TV Shows" : type}
+                  </span>
                 </button>
               );
             })}
@@ -396,7 +402,10 @@ export default function DiscoveryPage() {
 
           {/* Infinite Scroll Sentinel for Rows */}
           {hasMoreRows ? (
-            <div ref={sentinelRef} className="flex justify-center pt-8 pb-16 w-full">
+            <div
+              ref={sentinelRef}
+              className="flex justify-center pt-8 pb-16 w-full"
+            >
               <div className="flex items-center gap-3 font-mono text-xs text-tui-amber uppercase tracking-widest">
                 <div className="w-4 h-4 border-2 border-tui-amber border-t-transparent rounded-full animate-spin" />
                 [ LOADING_CATEGORIES... ]

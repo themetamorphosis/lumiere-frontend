@@ -1,7 +1,7 @@
 "use server";
 
 import { authedFetch } from "@/lib/serverFetch";
-import type { MediaType, Status } from "@/lib/types";
+import type { Item, MediaType, Status } from "@/lib/types";
 import { safeParseWatchlistItems } from "@/lib/validators";
 
 type ItemInput = {
@@ -27,7 +27,7 @@ export async function getUserId(): Promise<string> {
   return user.id;
 }
 
-export async function getItems() {
+export async function getItems(): Promise<Item[]> {
   const res = await authedFetch(`/watchlist`, { cache: "no-store" });
   if (!res.ok) return [];
   const json = await res.json();

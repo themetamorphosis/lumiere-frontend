@@ -1,5 +1,6 @@
 "use client";
 
+import TMDBImage from "@/components/ui/TMDBImage";
 import React from "react";
 import Link from "next/link";
 import { Sparkles, Shuffle, ChevronRight, Film, Heart } from "lucide-react";
@@ -27,10 +28,12 @@ export default function SpotlightHero({ item, onShuffle }: SpotlightHeroProps) {
           <div className="relative z-10 flex flex-col sm:flex-row gap-4 sm:gap-6 items-start justify-between h-full w-full">
             <div className="relative shrink-0 rounded-2xl overflow-hidden border border-white/10 shadow-2xl transition-all duration-500 hover:scale-[1.03] hover:border-amber-500/40 aspect-[2/3] w-[100px] sm:w-[130px] md:w-[160px]">
               {item.coverUrl ? (
-                <img
+                <TMDBImage
                   src={item.coverUrl}
                   alt={item.title}
-                  className="w-full h-full object-cover"
+                  className="object-cover"
+                  fill
+                  sizes="(max-width: 640px) 100px, (max-width: 768px) 130px, 160px"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-black/60 text-[10px] text-white/40 uppercase font-mono tracking-widest text-center p-2">

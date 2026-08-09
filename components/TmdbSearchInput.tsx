@@ -179,8 +179,6 @@ export default function TmdbSearchInput({
     }
   }, [activeIdx]);
 
-  const isExpanded = query.length > 0 || isDesktopOpen;
-
   return (
     <div ref={containerRef} className="relative z-50 font-mono">
       {/* ── Mobile Toggle Button ── */}
@@ -199,7 +197,7 @@ export default function TmdbSearchInput({
 
       {/* ── Desktop Inline Search Input ── */}
       <div className="hidden sm:flex relative items-center">
-        <div className="absolute pointer-events-none left-3 text-tui-text-muted opacity-80 text-[10px] uppercase font-bold select-none">
+        <div className="absolute pointer-events-none left-3.5 text-tui-text-muted opacity-80 text-[11px] uppercase font-bold select-none">
           {loading ? "..." : "ADD >"}
         </div>
         <input
@@ -212,11 +210,11 @@ export default function TmdbSearchInput({
             if (results.length > 0) setIsDesktopOpen(true);
           }}
           placeholder={placeholder}
-          className={`h-8 text-tui-text pl-12 pr-8 text-xs uppercase placeholder:text-tui-text-muted/40 outline-none border transition-all duration-150 w-full sm:w-[220px] bg-tui-panel border-tui-border hover:border-tui-text-muted focus:sm:w-[300px] focus:border-tui-text focus:bg-tui-input ${
-                        (query.length > 0 || isDesktopOpen)
-                          ? "sm:w-[300px] bg-tui-input border-tui-text"
-                          : ""
-                      }`}
+          className={`h-11 text-tui-text pl-14 pr-9 text-[13px] uppercase placeholder:text-tui-text-muted/40 outline-none border transition-all duration-150 w-full sm:w-[260px] bg-tui-panel border-tui-border hover:border-tui-text-muted focus:sm:w-[380px] focus:border-tui-text focus:bg-tui-input ${
+            query.length > 0 || isDesktopOpen
+              ? "sm:w-[380px] bg-tui-input border-tui-text"
+              : ""
+          }`}
           autoComplete="off"
           spellCheck={false}
         />
@@ -244,7 +242,7 @@ export default function TmdbSearchInput({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 4 }}
             transition={{ duration: 0.15 }}
-            className="hidden sm:block absolute left-0 top-full mt-1.5 w-full sm:w-[420px] max-h-[380px] overflow-y-auto bg-tui-panel border border-tui-border shadow-2xl overscroll-contain"
+            className="hidden sm:block absolute left-0 top-full mt-2 w-full sm:w-[520px] max-h-[480px] overflow-y-auto bg-tui-panel border border-tui-border shadow-2xl overscroll-contain"
             style={{
               scrollbarWidth: "thin",
               scrollbarColor: "rgba(255,255,255,0.1) transparent",
@@ -258,7 +256,7 @@ export default function TmdbSearchInput({
                     id={`tmdb-result-${i}`}
                     onMouseEnter={() => setActiveIdx(i)}
                     className={`
-                                          w-full flex items-center gap-3 px-3 py-2
+                                          w-full flex items-center gap-3.5 px-3.5 py-3
                                           text-left transition-colors duration-100
                                           ${
                                             activeIdx === i
@@ -268,7 +266,7 @@ export default function TmdbSearchInput({
                                         `}
                   >
                     {/* Poster thumbnail */}
-                    <div className="flex-shrink-0 w-10 h-[56px] border border-tui-border-muted overflow-hidden bg-tui-bg flex items-center justify-center">
+                    <div className="flex-shrink-0 w-[54px] h-[81px] border border-tui-border-muted overflow-hidden bg-tui-bg flex items-center justify-center">
                       {r.posterUrl ? (
                         <img
                           src={r.posterUrl}
@@ -277,18 +275,18 @@ export default function TmdbSearchInput({
                           loading="lazy"
                         />
                       ) : (
-                        <Film className="h-4 w-4 text-tui-text-muted/40" />
+                        <Film className="h-5 w-5 text-tui-text-muted/40" />
                       )}
                     </div>
 
                     {/* Text info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline gap-1.5">
-                        <span className="text-xs font-bold text-tui-text truncate uppercase block">
+                        <span className="text-sm font-bold text-tui-text truncate uppercase block">
                           {r.title}
                         </span>
                         {r.year && (
-                          <span className="text-[10px] text-tui-text-muted flex-shrink-0">
+                          <span className="text-[11px] text-tui-text-muted flex-shrink-0">
                             ({r.year})
                           </span>
                         )}
@@ -296,11 +294,11 @@ export default function TmdbSearchInput({
 
                       {/* Genres */}
                       {r.genres.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-0.5">
+                        <div className="flex flex-wrap gap-1.5 mt-1">
                           {r.genres.slice(0, 2).map((g) => (
                             <span
                               key={g}
-                              className="text-[9px] text-tui-text-muted uppercase"
+                              className="text-[11px] text-tui-text-muted uppercase"
                             >
                               [{g}]
                             </span>
@@ -310,8 +308,8 @@ export default function TmdbSearchInput({
 
                       {/* Rating */}
                       {r.voteAverage != null && r.voteAverage > 0 && (
-                        <div className="mt-0.5 flex items-center gap-1 text-[10px] text-tui-amber font-bold">
-                          <Star className="h-3 w-3 fill-current text-tui-amber" />
+                        <div className="mt-1 flex items-center gap-1 text-[11px] text-tui-amber font-bold">
+                          <Star className="h-3.5 w-3.5 fill-current text-tui-amber" />
                           <span>{r.voteAverage.toFixed(1)}</span>
                         </div>
                       )}
@@ -323,7 +321,7 @@ export default function TmdbSearchInput({
                         e.stopPropagation();
                         handleSelect(r);
                       }}
-                      className="flex-shrink-0 px-2 py-1 text-[10px] font-bold uppercase border border-tui-green/30 text-tui-green bg-tui-green/10 hover:bg-tui-green/20 hover:text-tui-green transition-colors"
+                      className="flex-shrink-0 px-3 py-1.5 text-[11px] font-bold uppercase border border-tui-green/30 text-tui-green bg-tui-green/10 hover:bg-tui-green/20 hover:text-tui-green transition-colors"
                       title={`Add ${r.title}`}
                     >
                       [+ ADD]
@@ -439,7 +437,7 @@ export default function TmdbSearchInput({
                                 id={`tmdb-result-${i}`}
                                 onMouseEnter={() => setActiveIdx(i)}
                                 className={`
-                                                              w-full flex items-center gap-3 px-3 py-2.5
+                                                              w-full flex items-center gap-3.5 px-3.5 py-3
                                                               text-left transition-colors duration-100
                                                               ${
                                                                 activeIdx === i
@@ -452,7 +450,7 @@ export default function TmdbSearchInput({
                                 tabIndex={0}
                               >
                                 {/* Poster thumbnail */}
-                                <div className="flex-shrink-0 w-10 h-[56px] border border-tui-border-muted overflow-hidden bg-tui-bg flex items-center justify-center">
+                                <div className="flex-shrink-0 w-[54px] h-[81px] border border-tui-border-muted overflow-hidden bg-tui-bg flex items-center justify-center">
                                   {r.posterUrl ? (
                                     <img
                                       src={r.posterUrl}
@@ -461,18 +459,18 @@ export default function TmdbSearchInput({
                                       loading="lazy"
                                     />
                                   ) : (
-                                    <Film className="h-4 w-4 text-tui-text-muted/40" />
+                                    <Film className="h-5 w-5 text-tui-text-muted/40" />
                                   )}
                                 </div>
 
                                 {/* Text info */}
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-baseline gap-1.5">
-                                    <span className="text-xs font-bold text-tui-text truncate uppercase block">
+                                    <span className="text-sm font-bold text-tui-text truncate uppercase block">
                                       {r.title}
                                     </span>
                                     {r.year && (
-                                      <span className="text-[10px] text-tui-text-muted flex-shrink-0">
+                                      <span className="text-[11px] text-tui-text-muted flex-shrink-0">
                                         ({r.year})
                                       </span>
                                     )}
@@ -480,11 +478,11 @@ export default function TmdbSearchInput({
 
                                   {/* Genres */}
                                   {r.genres.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 mt-0.5">
+                                    <div className="flex flex-wrap gap-1.5 mt-1">
                                       {r.genres.slice(0, 2).map((g) => (
                                         <span
                                           key={g}
-                                          className="text-[9px] text-tui-text-muted uppercase"
+                                          className="text-[11px] text-tui-text-muted uppercase"
                                         >
                                           [{g}]
                                         </span>
@@ -495,8 +493,8 @@ export default function TmdbSearchInput({
                                   {/* Rating */}
                                   {r.voteAverage != null &&
                                     r.voteAverage > 0 && (
-                                      <div className="mt-0.5 flex items-center gap-1 text-[10px] text-tui-amber font-bold">
-                                        <Star className="h-3 w-3 fill-current text-tui-amber" />
+                                      <div className="mt-1 flex items-center gap-1 text-[11px] text-tui-amber font-bold">
+                                        <Star className="h-3.5 w-3.5 fill-current text-tui-amber" />
                                         <span>{r.voteAverage.toFixed(1)}</span>
                                       </div>
                                     )}
@@ -508,7 +506,7 @@ export default function TmdbSearchInput({
                                     e.stopPropagation();
                                     handleSelect(r);
                                   }}
-                                  className="flex-shrink-0 px-2 py-1 text-[10px] font-bold uppercase border border-tui-green/30 text-tui-green bg-green-950/15 ml-2 hover:bg-tui-green/20 transition-colors"
+                                  className="flex-shrink-0 px-3 py-1.5 text-[11px] font-bold uppercase border border-tui-green/30 text-tui-green bg-green-950/15 ml-2 hover:bg-tui-green/20 transition-colors"
                                   title={`Add ${r.title}`}
                                 >
                                   [+ ADD]

@@ -15,7 +15,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Environment variables must be present at build time
+# NEXT_PUBLIC_* is inlined into the client bundle at build time, so it must be a
+# build ARG. Supplying it only at runtime leaves the compiled bundle pointing at
+# the lib/auth.ts fallback (127.0.0.1), which resolves to the *user's* machine.
+ARG NEXT_PUBLIC_API_URL=http://127.0.0.1:8000/api/v1
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 

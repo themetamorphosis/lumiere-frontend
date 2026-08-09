@@ -19,8 +19,6 @@ import {
   Tv,
   Sparkles,
   ChevronDown,
-  Moon,
-  Sun,
   Terminal,
   Monitor,
 } from "lucide-react";
