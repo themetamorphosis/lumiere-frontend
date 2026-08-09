@@ -1,3 +1,6 @@
+import { createHash } from "crypto";
+import { z } from "zod";
+
 export const maxDuration = 30;
 
 const BACKEND_API = process.env.API_URL || "http://127.0.0.1:8000/api/v1";
@@ -8,11 +11,32 @@ const AI_MODEL = process.env.AI_MODEL || "deepseek-chat";
 /** Max model round-trips per request before we stop dispatching tools. */
 const MAX_TOOL_TURNS = 8;
 
+/** Caps on client-supplied input. Each request can cost up to MAX_TOOL_TURNS
+ *  streamed model calls against a paid API, so the input side is bounded too. */
+const MAX_MESSAGES = 20;
+const MAX_MESSAGE_CHARS = 4000;
+
+/** Per-session request budget. */
+const RATE_LIMIT_MAX_REQUESTS = 10;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
 interface ToolCall {
   id: string;
   type: string;
   function: { name: string; arguments: string };
 }
+
+/** A turn in the conversation sent upstream — wider than what a client may send. */
+type ConversationMessage = {
+  role: "system" | "user" | "assistant" | "tool";
+  content: string | null;
+  tool_calls?: {
+    id: string;
+    type: "function";
+    function: ToolCall["function"];
+  }[];
+  tool_call_id?: string;
+};
 
 async function executeTool(
   name: string,
@@ -167,9 +191,66 @@ BEHAVIOR:
 - Do not narrate your tool usage (don't say "I will now search for..."). Just do it.
 - Format your text beautifully using markdown (bolding titles, using bullet points).`;
 
-export async function POST(req: Request) {
-  const { messages } = await req.json();
+/**
+ * Client-supplied conversation turns.
+ *
+ * `role` is deliberately limited to user/assistant. A client that can send
+ * `role: "system"` gets a second system message spliced in ahead of the tool
+ * definitions below — and those tools write to the caller's library. Prompt
+ * text is not an authorization boundary, so the boundary lives here.
+ */
+const ChatMessageSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  content: z.string().min(1).max(MAX_MESSAGE_CHARS),
+});
 
+const ChatBodySchema = z.object({
+  messages: z.array(ChatMessageSchema).min(1).max(MAX_MESSAGES),
+});
+
+/**
+ * Per-session sliding window. In-memory, so it is per server instance and
+ * resets on deploy — enough to stop a runaway client from billing us for an
+ * unbounded number of model round trips, not a distributed quota. Move this to
+ * Redis alongside the backend's rate limiter when running more than one
+ * instance.
+ */
+const rateLimitBuckets = new Map<string, number[]>();
+
+function checkRateLimit(token: string): boolean {
+  const key = createHash("sha256").update(token).digest("hex");
+  const now = Date.now();
+  const recent = (rateLimitBuckets.get(key) ?? []).filter(
+    (t) => now - t < RATE_LIMIT_WINDOW_MS,
+  );
+
+  if (recent.length >= RATE_LIMIT_MAX_REQUESTS) {
+    rateLimitBuckets.set(key, recent);
+    return false;
+  }
+
+  recent.push(now);
+  rateLimitBuckets.set(key, recent);
+
+  // Bounded cleanup so an instance that has seen many sessions doesn't grow
+  // the map forever.
+  if (rateLimitBuckets.size > 1000) {
+    for (const [k, times] of rateLimitBuckets) {
+      if (times.every((t) => now - t >= RATE_LIMIT_WINDOW_MS)) {
+        rateLimitBuckets.delete(k);
+      }
+    }
+  }
+
+  return true;
+}
+
+/** Test seam: the limiter is module state and would leak between test cases. */
+export function __resetChatRateLimit() {
+  rateLimitBuckets.clear();
+}
+
+export async function POST(req: Request) {
   const { cookies } = await import("next/headers");
   const cookieStore = await cookies();
   const token = cookieStore.get("auth_token")?.value;
@@ -177,6 +258,26 @@ export async function POST(req: Request) {
   if (!token) {
     return new Response("Unauthorized", { status: 401 });
   }
+
+  if (!checkRateLimit(token)) {
+    return new Response("Too many requests", {
+      status: 429,
+      headers: { "Retry-After": String(RATE_LIMIT_WINDOW_MS / 1000) },
+    });
+  }
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response("Invalid JSON body", { status: 400 });
+  }
+
+  const parsed = ChatBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return new Response("Invalid request body", { status: 400 });
+  }
+  const { messages } = parsed.data;
 
   const apiKey = process.env.AI_API_KEY;
   if (!apiKey) {
@@ -187,7 +288,11 @@ export async function POST(req: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        const conversation = [
+        // Widened past the validated client shape: the loop appends assistant
+        // turns (whose content is null when the model only requested tools)
+        // and tool results. Client input is still narrowed to user/assistant
+        // by ChatBodySchema before it reaches here.
+        const conversation: ConversationMessage[] = [
           { role: "system", content: SYSTEM_PROMPT },
           ...messages,
         ];
@@ -309,9 +414,12 @@ export async function POST(req: Request) {
           }
         }
       } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e);
+        // Log the detail; stream a generic message. Raw exception text can
+        // carry upstream URLs and internals straight to the browser.
         console.error("Chat error:", e);
-        controller.enqueue(encoder.encode(`[Error: ${msg}]`));
+        controller.enqueue(
+          encoder.encode("[Error: something went wrong. Please try again.]"),
+        );
       } finally {
         controller.close();
       }

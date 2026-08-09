@@ -16,7 +16,7 @@ vi.mock("@/lib/session", () => ({
   setSessionCookies: (t: unknown) => mockSession.setSessionCookies(t),
 }));
 
-import { authedFetch } from "@/lib/serverFetch";
+import { authedFetch, __resetRefreshState } from "@/lib/serverFetch";
 
 function res(status: number, body: unknown = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -30,6 +30,7 @@ describe("authedFetch", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    __resetRefreshState();
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     mockSession.getAccessToken.mockResolvedValue("access-1");
@@ -165,6 +166,100 @@ describe("authedFetch", () => {
 
       const out = await authedFetch("/watchlist");
       expect(out.status).toBe(401);
+    });
+  });
+
+  describe("concurrent refresh", () => {
+    /** Count calls to the rotating refresh endpoint. */
+    function refreshCalls() {
+      return fetchMock.mock.calls.filter(
+        ([url]) => typeof url === "string" && url.includes("/auth/refresh"),
+      ).length;
+    }
+
+    it("exchanges the refresh token once for simultaneous 401s", async () => {
+      // The backend revokes the whole family when a rotated token is replayed,
+      // so a second exchange would log the user out.
+      fetchMock.mockImplementation(async (url: string) => {
+        if (url.includes("/auth/refresh")) {
+          await new Promise((r) => setTimeout(r, 10));
+          return res(200, {
+            access_token: "access-2",
+            refresh_token: "refresh-2",
+          });
+        }
+        return res(401);
+      });
+
+      await Promise.all([
+        authedFetch("/watchlist"),
+        authedFetch("/auth/me"),
+        authedFetch("/watchlist/stats"),
+      ]);
+
+      expect(refreshCalls()).toBe(1);
+      expect(mockSession.setSessionCookies).toHaveBeenCalledTimes(1);
+    });
+
+    it("gives every waiter the renewed token", async () => {
+      let attempt = 0;
+      fetchMock.mockImplementation(async (url: string, init: RequestInit) => {
+        if (url.includes("/auth/refresh")) {
+          await new Promise((r) => setTimeout(r, 10));
+          return res(200, {
+            access_token: "access-2",
+            refresh_token: "refresh-2",
+          });
+        }
+        attempt += 1;
+        const cookie = (init.headers as Headers).get("Cookie");
+        // First pass for each caller carries the stale token and 401s.
+        return cookie === "auth_token=access-2"
+          ? res(200, { ok: true })
+          : res(401);
+      });
+
+      const results = await Promise.all([
+        authedFetch("/watchlist"),
+        authedFetch("/auth/me"),
+      ]);
+
+      expect(results.every((r) => r.status === 200)).toBe(true);
+      expect(refreshCalls()).toBe(1);
+      expect(attempt).toBe(4); // two initial 401s, two successful replays
+    });
+
+    it("starts a fresh exchange after the previous one settles", async () => {
+      fetchMock.mockImplementation(async (url: string) => {
+        if (url.includes("/auth/refresh")) {
+          return res(200, {
+            access_token: "access-2",
+            refresh_token: "refresh-2",
+          });
+        }
+        return res(401);
+      });
+
+      await authedFetch("/watchlist");
+      await authedFetch("/watchlist");
+
+      // Sequential calls are two separate expiries, not a race.
+      expect(refreshCalls()).toBe(2);
+    });
+
+    it("does not strand waiters when the refresh fails", async () => {
+      fetchMock.mockImplementation(async (url: string) => {
+        if (url.includes("/auth/refresh")) return res(401);
+        return res(401);
+      });
+
+      const results = await Promise.all([
+        authedFetch("/watchlist"),
+        authedFetch("/auth/me"),
+      ]);
+
+      expect(results.every((r) => r.status === 401)).toBe(true);
+      expect(refreshCalls()).toBe(1);
     });
   });
 });

@@ -168,7 +168,6 @@ export default function DashboardPage() {
       <RetroDashboard
         greeting={greeting}
         userName={userName}
-        userImage={userImage}
         userEmail={userEmail}
         stats={stats}
         activeSpotlight={activeSpotlight}

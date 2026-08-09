@@ -12,6 +12,7 @@ import {
   updateMetadata,
 } from "@/app/actions/items";
 import { fetchPoster } from "@/lib/poster";
+import { safeParseWatchlistItems } from "@/lib/validators";
 
 export function useLibraryData(userId: string) {
   const [items, setItems] = useState<Item[]>([]);
@@ -28,13 +29,24 @@ export function useLibraryData(userId: string) {
     try {
       const cached = localStorage.getItem(`wv-cache-items-${userId}`);
       if (cached) {
-        t2 = setTimeout(() => {
-          setItems(JSON.parse(cached));
-          setReady(true);
-        }, 0);
+        // Validated with the same schema the network path uses. A cache
+        // written by an older build (or edited by hand) would otherwise render
+        // straight into the UI as trusted Item[].
+        const parsed = safeParseWatchlistItems(JSON.parse(cached));
+        if (parsed.success) {
+          t2 = setTimeout(() => {
+            setItems(parsed.data as Item[]);
+            setReady(true);
+          }, 0);
+        } else {
+          localStorage.removeItem(`wv-cache-items-${userId}`);
+        }
       }
     } catch (e) {
       console.error("Failed to read cache:", e);
+      try {
+        localStorage.removeItem(`wv-cache-items-${userId}`);
+      } catch {}
     }
 
     getItems()
@@ -127,35 +139,48 @@ export function useLibraryData(userId: string) {
     });
   }, []);
 
+  // Mirrors the latest items so a rollback can read the pre-change row without
+  // capturing the whole array in a closure.
+  const itemsRef = useRef<Item[]>(items);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
   // CRUD operations
+  //
+  // Each of these rolls back by inverting its own change rather than restoring
+  // a whole-array snapshot. Snapshots were captured at render time, so a failed
+  // delete also reverted any favorite toggle that happened in between.
   const handleUpsert = useCallback(
     (next: Omit<Item, "id" | "createdAt" | "updatedAt">, id?: string) => {
       const now = Date.now();
       if (id) {
-        const prev = items;
-        setItems((prev) =>
-          prev.map((p) =>
+        const before = itemsRef.current.find((p) => p.id === id);
+        setItems((current) =>
+          current.map((p) =>
             p.id === id ? { ...p, ...next, updatedAt: now } : p,
           ),
         );
         startTransition(async () => {
           const result = await upsertItem({ ...next, id });
           if (!result.success) {
-            setItems(prev);
+            // Restore just this row; everything else keeps its current value.
+            setItems((current) =>
+              before ? current.map((p) => (p.id === id ? before : p)) : current,
+            );
             toast.error("Update failed — changes reverted");
           }
         });
       } else {
         const tempId = crypto.randomUUID?.() ?? String(now);
-        const prev = items;
-        setItems((prev) => [
+        setItems((current) => [
           { id: tempId, createdAt: now, updatedAt: now, ...next },
-          ...prev,
+          ...current,
         ]);
         startTransition(async () => {
           const result = await upsertItem(next);
           if (!result.success) {
-            setItems(prev);
+            setItems((current) => current.filter((p) => p.id !== tempId));
             toast.error("Create failed — item removed");
           } else {
             refreshItems();
@@ -163,44 +188,49 @@ export function useLibraryData(userId: string) {
         });
       }
     },
-    [items, refreshItems],
+    [refreshItems],
   );
 
-  const handleDelete = useCallback(
-    (id: string) => {
-      const prev = items;
-      setItems((prev) => prev.filter((p) => p.id !== id));
-      startTransition(async () => {
-        const result = await deleteItem(id);
-        if (!result.success) {
-          setItems(prev);
-          toast.error("Delete failed — item restored");
-        }
-      });
-    },
-    [items],
-  );
+  const handleDelete = useCallback((id: string) => {
+    const removed = itemsRef.current.find((p) => p.id === id);
+    const index = itemsRef.current.findIndex((p) => p.id === id);
+    setItems((current) => current.filter((p) => p.id !== id));
+    startTransition(async () => {
+      const result = await deleteItem(id);
+      if (!result.success && removed) {
+        setItems((current) => {
+          if (current.some((p) => p.id === id)) return current;
+          // Put it back where it was, so a failed delete doesn't reorder.
+          const restored = [...current];
+          restored.splice(Math.min(index, restored.length), 0, removed);
+          return restored;
+        });
+        toast.error("Delete failed — item restored");
+      }
+    });
+  }, []);
 
-  const handleToggleFav = useCallback(
-    (id: string) => {
-      const prev = items;
-      setItems((prev) =>
-        prev.map((p) =>
-          p.id === id
-            ? { ...p, favorite: !p.favorite, updatedAt: Date.now() }
-            : p,
-        ),
-      );
-      startTransition(async () => {
-        const result = await toggleFavorite(id);
-        if (!result.success) {
-          setItems(prev);
-          toast.error("Favorite toggle failed — reverted");
-        }
-      });
-    },
-    [items],
-  );
+  const handleToggleFav = useCallback((id: string) => {
+    setItems((current) =>
+      current.map((p) =>
+        p.id === id
+          ? { ...p, favorite: !p.favorite, updatedAt: Date.now() }
+          : p,
+      ),
+    );
+    startTransition(async () => {
+      const result = await toggleFavorite(id);
+      if (!result.success) {
+        // Inverse of the change, so no snapshot is needed at all.
+        setItems((current) =>
+          current.map((p) =>
+            p.id === id ? { ...p, favorite: !p.favorite } : p,
+          ),
+        );
+        toast.error("Favorite toggle failed — reverted");
+      }
+    });
+  }, []);
 
   const handleImport = useCallback(
     (newItems: Item[]) => {

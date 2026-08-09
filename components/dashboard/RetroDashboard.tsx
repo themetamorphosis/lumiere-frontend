@@ -13,7 +13,6 @@ import { useRetroTheme } from "@/components/layout/RetroThemeContext";
 interface RetroDashboardProps {
   greeting: string;
   userName: string;
-  userImage?: string | null;
   userEmail: string;
   stats: DashboardStats;
   activeSpotlight: Item | null;
@@ -24,7 +23,6 @@ interface RetroDashboardProps {
 export default function RetroDashboard({
   greeting,
   userName,
-  userImage,
   userEmail,
   stats,
   activeSpotlight,

@@ -26,7 +26,35 @@ function isAuthEndpoint(endpoint: string): boolean {
  * are writable; if a write ever fails we return null rather than leaving the
  * caller holding a token we couldn't persist.
  */
-async function refreshSession(): Promise<string | null> {
+/**
+ * In-flight refresh, shared by concurrent callers.
+ *
+ * The backend rotates the refresh-token family on every use and treats a stale
+ * family as a replay attack, revoking everything. Two server actions that 401
+ * at the same moment — routine, since a page fires several in parallel — would
+ * both POST the same token: the first rotates, the second trips reuse detection
+ * and logs the user out. Coalescing collapses that to one exchange.
+ *
+ * Per server instance, so this narrows the window rather than closing it;
+ * closing it needs shared state, which arrives with Redis in Phase 4.
+ */
+let inFlightRefresh: Promise<string | null> | null = null;
+
+function refreshSession(): Promise<string | null> {
+  if (!inFlightRefresh) {
+    inFlightRefresh = performRefresh().finally(() => {
+      inFlightRefresh = null;
+    });
+  }
+  return inFlightRefresh;
+}
+
+/** Test seam: module state would otherwise leak between cases. */
+export function __resetRefreshState() {
+  inFlightRefresh = null;
+}
+
+async function performRefresh(): Promise<string | null> {
   const refreshToken = await getRefreshToken();
   if (!refreshToken) return null;
 

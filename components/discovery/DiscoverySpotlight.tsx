@@ -47,6 +47,15 @@ export default function DiscoverySpotlight({
   const scrollTimeout = useRef<NodeJS.Timeout | undefined>(undefined);
   const lastObservedIdx = useRef(spotlightIdx);
 
+  // The observer effect reads the current index but must not be torn down and
+  // rebuilt every time it changes — that would drop and re-register every card
+  // observation mid-scroll. A ref gives the callback the live value while
+  // keeping the effect's dependencies honest.
+  const spotlightIdxRef = useRef(spotlightIdx);
+  useEffect(() => {
+    spotlightIdxRef.current = spotlightIdx;
+  }, [spotlightIdx]);
+
   // Intersection Observer to detect which card is centered in the scroll view
   useEffect(() => {
     if (isRetro || !setSpotlightIdx || spotlightItems.length === 0) return;
@@ -67,7 +76,10 @@ export default function DiscoverySpotlight({
         });
 
         if (bestIdx !== -1 && maxRatio > 0.5) {
-          if (bestIdx !== spotlightIdx && !isProgrammaticScroll.current) {
+          if (
+            bestIdx !== spotlightIdxRef.current &&
+            !isProgrammaticScroll.current
+          ) {
             lastObservedIdx.current = bestIdx;
             if (setSpotlightIdx) setSpotlightIdx(bestIdx);
           }

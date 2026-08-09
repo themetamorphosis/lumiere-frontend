@@ -39,10 +39,13 @@ export default defineConfig({
         // did NOT enforce (a deliberately impossible 100% on lib/session.ts
         // still passed), so they gave false assurance. Ratchet these upward as
         // component coverage grows; never lower them to turn a build green.
-        statements: 15,
-        branches: 10,
-        functions: 9,
-        lines: 15,
+        // Ratcheted per phase; they only ever move up.
+        //   baseline 15/10/9/15 → P1 16/11/9/17 → P2 below.
+        // Phase 3 raises these substantially.
+        statements: 18,
+        branches: 12,
+        functions: 12,
+        lines: 19,
       },
     },
   },

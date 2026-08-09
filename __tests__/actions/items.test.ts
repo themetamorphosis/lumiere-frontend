@@ -55,9 +55,12 @@ describe("Server Actions: items", () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].title).toBe("Test");
-      expect(mockAuthedFetch).toHaveBeenCalledWith("/watchlist", {
-        cache: "no-store",
-      });
+      // Sends an explicit limit rather than relying on the server default,
+      // so it behaves identically against both backend versions.
+      expect(mockAuthedFetch).toHaveBeenCalledWith(
+        "/watchlist?limit=100&offset=0",
+        { cache: "no-store" },
+      );
     });
 
     it("returns [] on fetch failure", async () => {
@@ -78,6 +81,100 @@ describe("Server Actions: items", () => {
       const result = await getItems();
 
       expect(result).toEqual([]);
+    });
+
+    it("follows has_more across pages", async () => {
+      const row = (id: string) => ({
+        id,
+        userId: "user-1",
+        title: `Item ${id}`,
+        mediaType: "movie" as const,
+        status: "pending" as const,
+        favorite: false,
+      });
+      const page1 = Array.from({ length: 100 }, (_, i) => row(`p1-${i}`));
+      const page2 = [row("p2-0")];
+
+      mockAuthedFetch
+        .mockResolvedValueOnce(jsonResponse({ items: page1, has_more: true }))
+        .mockResolvedValueOnce(jsonResponse({ items: page2, has_more: false }));
+      mockSafeParse.mockImplementation((data) => ({
+        success: true,
+        data: data as never,
+      }));
+
+      const result = await getItems();
+
+      expect(result).toHaveLength(101);
+      expect(mockAuthedFetch).toHaveBeenNthCalledWith(
+        1,
+        "/watchlist?limit=100&offset=0",
+        { cache: "no-store" },
+      );
+      expect(mockAuthedFetch).toHaveBeenNthCalledWith(
+        2,
+        "/watchlist?limit=100&offset=100",
+        { cache: "no-store" },
+      );
+    });
+
+    it("stops after one page when the backend ignores pagination", async () => {
+      // An older backend returns a bare array; there is no second page.
+      const rows = Array.from({ length: 3 }, (_, i) => ({
+        id: String(i),
+        userId: "u",
+        title: `T${i}`,
+        mediaType: "movie" as const,
+        status: "pending" as const,
+        favorite: false,
+      }));
+      mockAuthedFetch.mockImplementation(async () => jsonResponse(rows));
+      mockSafeParse.mockImplementation((data) => ({
+        success: true,
+        data: data as never,
+      }));
+
+      const result = await getItems();
+
+      expect(result).toHaveLength(3);
+      expect(mockAuthedFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops on an empty page even if has_more stays true", async () => {
+      mockAuthedFetch.mockImplementation(async () =>
+        jsonResponse({ items: [], has_more: true }),
+      );
+      mockSafeParse.mockReturnValue({ success: true, data: [] });
+
+      const result = await getItems();
+
+      expect(result).toEqual([]);
+      expect(mockAuthedFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the pages it already has when a later page fails", async () => {
+      const rows = [
+        {
+          id: "1",
+          userId: "u",
+          title: "Kept",
+          mediaType: "movie" as const,
+          status: "pending" as const,
+          favorite: false,
+        },
+      ];
+      mockAuthedFetch
+        .mockResolvedValueOnce(jsonResponse({ items: rows, has_more: true }))
+        .mockResolvedValueOnce(new Response("{}", { status: 500 }));
+      mockSafeParse.mockImplementation((data) => ({
+        success: true,
+        data: data as never,
+      }));
+
+      const result = await getItems();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].title).toBe("Kept");
     });
   });
 
@@ -205,39 +302,98 @@ describe("Server Actions: items", () => {
 
       const result = await importItems(items);
 
-      expect(result).toEqual({ success: true, imported: 3 });
+      // `failed` is new: chunked imports can partially succeed.
+      expect(result).toEqual({ success: true, imported: 3, failed: 0 });
       expect(mockAuthedFetch).toHaveBeenCalledWith(
         "/watchlist/batch",
         expect.objectContaining({ method: "POST" }),
       );
     });
 
-    it("falls back to sequential on batch failure", async () => {
-      // First call (batch) fails
-      mockAuthedFetch.mockResolvedValueOnce(
-        new Response("{}", { status: 404 }),
+    it("chunks to the server's batch ceiling instead of one request per item", async () => {
+      // The backend 413s above 100. The old fallback read that as "old
+      // backend" and sent one POST per item, hitting the rate limiter.
+      // A fresh Response per call: a body can only be read once, so a shared
+      // instance would fail on the second chunk.
+      mockAuthedFetch.mockImplementation(async () =>
+        jsonResponse({ success: true, imported: 100 }),
       );
-      // Sequential calls succeed
-      mockAuthedFetch.mockResolvedValue(new Response("{}", { status: 200 }));
 
-      const items = [
+      const items = Array.from({ length: 250 }, (_, i) => ({
+        title: `Film ${i}`,
+        mediaType: "movie" as const,
+        status: "pending" as const,
+        favorite: false,
+      }));
+
+      const result = await importItems(items);
+
+      expect(mockAuthedFetch).toHaveBeenCalledTimes(3);
+      for (const [url, init] of mockAuthedFetch.mock.calls) {
+        expect(url).toBe("/watchlist/batch");
+        expect(JSON.parse(init!.body as string).length).toBeLessThanOrEqual(
+          100,
+        );
+      }
+      expect(result).toMatchObject({ success: true, imported: 300 });
+    });
+
+    it("sends the exact chunk boundaries", async () => {
+      mockAuthedFetch.mockImplementation(async () =>
+        jsonResponse({ success: true, imported: 0 }),
+      );
+
+      const items = Array.from({ length: 101 }, (_, i) => ({
+        title: `Film ${i}`,
+        mediaType: "movie" as const,
+        status: "pending" as const,
+        favorite: false,
+      }));
+
+      await importItems(items);
+
+      const sizes = mockAuthedFetch.mock.calls.map(
+        ([, init]) => JSON.parse(init!.body as string).length,
+      );
+      expect(sizes).toEqual([100, 1]);
+    });
+
+    it("reports a partial import rather than failing outright", async () => {
+      mockAuthedFetch
+        .mockResolvedValueOnce(jsonResponse({ success: true, imported: 100 }))
+        .mockResolvedValueOnce(new Response("{}", { status: 500 }));
+
+      const items = Array.from({ length: 150 }, (_, i) => ({
+        title: `Film ${i}`,
+        mediaType: "movie" as const,
+        status: "pending" as const,
+        favorite: false,
+      }));
+
+      const result = await importItems(items);
+
+      expect(result).toMatchObject({
+        success: true,
+        imported: 100,
+        failed: 50,
+      });
+    });
+
+    it("reports failure when nothing landed", async () => {
+      mockAuthedFetch.mockImplementation(
+        async () => new Response("{}", { status: 500 }),
+      );
+
+      const result = await importItems([
         {
           title: "A",
           mediaType: "movie" as const,
           status: "pending" as const,
           favorite: false,
         },
-        {
-          title: "B",
-          mediaType: "movie" as const,
-          status: "pending" as const,
-          favorite: false,
-        },
-      ];
+      ]);
 
-      const result = await importItems(items);
-
-      expect(result).toEqual({ success: true, imported: 2 });
+      expect(result).toMatchObject({ error: "Import failed", imported: 0 });
     });
   });
 });

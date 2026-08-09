@@ -186,7 +186,7 @@ describe("useLibraryData", () => {
   });
 
   it("handleImport adds items and shows success toast", async () => {
-    mockImportItems.mockResolvedValue({ success: true, imported: 2 });
+    mockImportItems.mockResolvedValue({ success: true, imported: 2, failed: 0 });
     const { result } = renderHook(() => useLibraryData("user-1"));
 
     await waitFor(() => expect(result.current.ready).toBe(true));
@@ -210,7 +210,8 @@ describe("useLibraryData", () => {
   });
 
   it("handleImport failure shows toast and refreshes", async () => {
-    mockImportItems.mockResolvedValue({ success: false, imported: 0 });
+    // Total failure now returns an `error` shape rather than success:false.
+    mockImportItems.mockResolvedValue({ error: "Import failed", imported: 0 });
     const { result } = renderHook(() => useLibraryData("user-1"));
 
     await waitFor(() => expect(result.current.ready).toBe(true));
@@ -232,6 +233,186 @@ describe("useLibraryData", () => {
     await waitFor(() => {
       expect(mockToast.error).toHaveBeenCalledWith(
         "Import failed — please try again",
+      );
+    });
+  });
+
+  describe("optimistic rollback", () => {
+    const second = {
+      ...mockItem,
+      id: "item-2",
+      title: "Arrival",
+      favorite: false,
+    };
+
+    it("a failed delete does not undo a concurrent favorite toggle", async () => {
+      // Rollback used to restore a whole-array snapshot captured at render
+      // time, which also reverted anything that changed in between.
+      mockGetItems.mockResolvedValue([mockItem, second]);
+
+      let resolveDelete: (v: { error: string }) => void = () => {};
+      mockDeleteItem.mockReturnValue(
+        new Promise((r) => {
+          resolveDelete = r;
+        }) as ReturnType<typeof deleteItem>,
+      );
+      mockToggleFavorite.mockResolvedValue({ success: true, favorite: true });
+
+      const { result } = renderHook(() => useLibraryData("user-1"));
+      await waitFor(() => expect(result.current.ready).toBe(true));
+
+      act(() => {
+        result.current.handleDelete("item-1");
+      });
+      act(() => {
+        result.current.handleToggleFav("item-2");
+      });
+
+      expect(
+        result.current.items.find((i) => i.id === "item-2")?.favorite,
+      ).toBe(true);
+
+      await act(async () => {
+        resolveDelete({ error: "Failed to delete item" });
+      });
+
+      await waitFor(() =>
+        expect(result.current.items.some((i) => i.id === "item-1")).toBe(true),
+      );
+
+      // The toggle must survive the unrelated rollback.
+      expect(
+        result.current.items.find((i) => i.id === "item-2")?.favorite,
+      ).toBe(true);
+    });
+
+    it("restores a deleted item at its original position", async () => {
+      mockGetItems.mockResolvedValue([mockItem, second]);
+      mockDeleteItem.mockResolvedValue({ error: "Failed to delete item" });
+
+      const { result } = renderHook(() => useLibraryData("user-1"));
+      await waitFor(() => expect(result.current.ready).toBe(true));
+
+      act(() => {
+        result.current.handleDelete("item-2");
+      });
+
+      await waitFor(() => expect(result.current.items).toHaveLength(2));
+      expect(result.current.items.map((i) => i.id)).toEqual([
+        "item-1",
+        "item-2",
+      ]);
+    });
+
+    it("a failed toggle reverts only that item's flag", async () => {
+      mockGetItems.mockResolvedValue([mockItem, second]);
+      mockToggleFavorite.mockResolvedValue({ error: "nope" });
+
+      const { result } = renderHook(() => useLibraryData("user-1"));
+      await waitFor(() => expect(result.current.ready).toBe(true));
+
+      act(() => {
+        result.current.handleToggleFav("item-1");
+      });
+
+      await waitFor(() =>
+        expect(
+          result.current.items.find((i) => i.id === "item-1")?.favorite,
+        ).toBe(false),
+      );
+      expect(result.current.items).toHaveLength(2);
+    });
+
+    it("a failed create removes only the optimistic row", async () => {
+      mockGetItems.mockResolvedValue([mockItem]);
+      mockUpsertItem.mockResolvedValue({ error: "Failed to save item" });
+
+      const { result } = renderHook(() => useLibraryData("user-1"));
+      await waitFor(() => expect(result.current.ready).toBe(true));
+
+      act(() => {
+        result.current.handleUpsert({
+          title: "Ghost",
+          mediaType: "movie",
+          status: "pending",
+          favorite: false,
+        });
+      });
+
+      await waitFor(() => expect(result.current.items).toHaveLength(1));
+      expect(result.current.items[0].id).toBe("item-1");
+    });
+  });
+
+  describe("cached items", () => {
+    // `localStorage` is not defined in this jsdom environment, so patching
+    // Storage.prototype (as the tests above do) never reaches the hook — every
+    // cache access simply threw into the catch. Stub the global instead.
+    function stubStorage(stored: string | null) {
+      const removeItem = vi.fn();
+      vi.stubGlobal("localStorage", {
+        getItem: vi.fn(() => stored),
+        setItem: vi.fn(),
+        removeItem,
+      });
+      return removeItem;
+    }
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    // Cache entries round-trip the shape getItems produces, which includes
+    // userId — the schema requires it.
+    const cachedRow = {
+      ...mockItem,
+      userId: "user-1",
+      id: "cached-1",
+      title: "From Cache",
+    };
+
+    it("drops a cache entry that fails validation", async () => {
+      const removeItem = stubStorage(JSON.stringify([{ nonsense: true }]));
+
+      const { result } = renderHook(() => useLibraryData("user-1"));
+      await waitFor(() => expect(result.current.ready).toBe(true));
+
+      // Network data wins; the malformed cache never reaches state.
+      expect(result.current.items).toEqual([mockItem]);
+      expect(removeItem).toHaveBeenCalledWith("wv-cache-items-user-1");
+    });
+
+    it("drops a cache entry that is not valid JSON", async () => {
+      const removeItem = stubStorage("{not json");
+
+      const { result } = renderHook(() => useLibraryData("user-1"));
+      await waitFor(() => expect(result.current.ready).toBe(true));
+
+      expect(result.current.items).toEqual([mockItem]);
+      expect(removeItem).toHaveBeenCalledWith("wv-cache-items-user-1");
+    });
+
+    it("renders a cache entry that validates, then replaces it with the network", async () => {
+      stubStorage(JSON.stringify([cachedRow]));
+
+      let resolveNetwork: (v: (typeof mockItem)[]) => void = () => {};
+      mockGetItems.mockReturnValue(
+        new Promise((r) => {
+          resolveNetwork = r;
+        }) as ReturnType<typeof getItems>,
+      );
+
+      const { result } = renderHook(() => useLibraryData("user-1"));
+
+      await waitFor(() =>
+        expect(result.current.items[0]?.title).toBe("From Cache"),
+      );
+
+      await act(async () => {
+        resolveNetwork([mockItem]);
+      });
+      await waitFor(() =>
+        expect(result.current.items[0]?.title).toBe("The Matrix"),
       );
     });
   });

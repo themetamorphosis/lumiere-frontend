@@ -2,9 +2,25 @@ import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import SessionProvider from "@/components/SessionProvider";
 import { GeistSans } from "geist/font/sans";
+import { Anton, IBM_Plex_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { RetroThemeProvider } from "@/components/layout/RetroThemeContext";
 import MotionProvider from "@/components/MotionProvider";
+import { THEME_SCRIPT } from "@/lib/themeScript";
+
+const anton = Anton({
+  subsets: ["latin"],
+  weight: "400",
+  display: "swap",
+  variable: "--font-display",
+});
+
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+  variable: "--font-mono",
+});
 
 export const metadata: Metadata = {
   title: "Lumière",
@@ -18,21 +34,8 @@ export const viewport: Viewport = {
 };
 
 // Inline script injected before React hydration to prevent theme flash.
-// Reads localStorage and sets data-theme on <html> synchronously.
-const themeScript = `
-(function() {
-  try {
-    var t = localStorage.getItem('wv-global-theme');
-    if (t === 'retro-light') {
-      document.documentElement.setAttribute('data-theme', 'retro-light');
-    } else {
-      document.documentElement.setAttribute('data-theme', 'retro-dark');
-    }
-  } catch(e) {
-    document.documentElement.setAttribute('data-theme', 'retro-dark');
-  }
-})();
-`;
+// Reads localStorage and sets data-theme on <html> synchronously. Defined in
+// lib/themeScript so next.config.ts can hash the identical string for the CSP.
 
 export default function RootLayout({
   children,
@@ -43,10 +46,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* Blocking script — runs before any CSS paint, prevents theme flash */}
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body
-        className={`${GeistSans.className} min-h-screen antialiased`}
+        className={`${GeistSans.className} ${anton.variable} ${plexMono.variable} min-h-screen antialiased`}
         style={{ background: "var(--bg)", color: "var(--text-primary)" }}
       >
         <a

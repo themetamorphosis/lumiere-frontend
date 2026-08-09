@@ -27,12 +27,46 @@ export async function getUserId(): Promise<string> {
   return user.id;
 }
 
-export async function getItems(): Promise<Item[]> {
-  const res = await authedFetch(`/watchlist`, { cache: "no-store" });
-  if (!res.ok) return [];
-  const json = await res.json();
-  const raw = Array.isArray(json) ? json : (json.items ?? []);
+/** Items requested per request. The backend caps `limit` at 500. */
+const PAGE_SIZE = 100;
 
+/** Stops a malformed `has_more` from looping forever. 100 pages = 10k items. */
+const MAX_PAGES = 100;
+
+export async function getItems(): Promise<Item[]> {
+  // Pages explicitly rather than relying on the server default. The backend
+  // still defaults `limit=0` ("everything") for older clients, so this works
+  // against both the current and the paginated-by-default backend — which is
+  // what makes the two deploys independent. See REMEDIATION_PLAN.md 2.6/2.10.
+  const raw: unknown[] = [];
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const offset = page * PAGE_SIZE;
+    const res = await authedFetch(
+      `/watchlist?limit=${PAGE_SIZE}&offset=${offset}`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) return page === 0 ? [] : raw.length ? finalize(raw) : [];
+
+    const json = await res.json();
+
+    // A bare array means an older backend that ignored the pagination
+    // parameters and returned everything; there is no second page to fetch.
+    if (Array.isArray(json)) {
+      raw.push(...json);
+      break;
+    }
+
+    const items = json.items ?? [];
+    raw.push(...items);
+
+    if (!json.has_more || items.length === 0) break;
+  }
+
+  return finalize(raw);
+}
+
+function finalize(raw: unknown[]): Item[] {
   const parsed = safeParseWatchlistItems(raw);
   if (!parsed.success) {
     console.error("Watchlist items validation failed:", parsed.error);
@@ -105,28 +139,40 @@ export async function updateMetadata(
   return { error: "Failed to update metadata" };
 }
 
+/** The backend rejects a batch larger than this with a 413. */
+const MAX_BATCH_SIZE = 100;
+
 export async function importItems(items: ItemInput[]) {
-  // Use batch endpoint for bulk imports (single HTTP request instead of N sequential ones)
-  const res = await authedFetch(`/watchlist/batch`, {
-    method: "POST",
-    body: JSON.stringify(items),
-  });
-  if (res.ok) {
-    const data = await res.json();
-    return { success: true, imported: data.imported ?? 0 };
-  }
-  // Fallback: if batch endpoint not available, try sequential (for old backends)
+  // Chunked to the server's documented ceiling. The previous code posted the
+  // whole list, took the resulting 413 as "old backend", and fell back to one
+  // request per item — which for a 300-item import meant 300 POSTs and a
+  // rate-limit wall around request 60.
   let imported = 0;
-  for (const item of items) {
+  let failed = 0;
+
+  for (let i = 0; i < items.length; i += MAX_BATCH_SIZE) {
+    const chunk = items.slice(i, i + MAX_BATCH_SIZE);
     try {
-      const r = await authedFetch(`/watchlist`, {
+      const res = await authedFetch(`/watchlist/batch`, {
         method: "POST",
-        body: JSON.stringify(item),
+        body: JSON.stringify(chunk),
       });
-      if (r.ok) imported++;
+      if (res.ok) {
+        const data = await res.json();
+        imported += data.imported ?? 0;
+      } else {
+        failed += chunk.length;
+      }
     } catch {
-      // skip
+      failed += chunk.length;
     }
   }
-  return { success: true, imported };
+
+  // A partial import is still a success — the caller reports what landed —
+  // but a run where nothing at all landed is a failure worth surfacing.
+  if (failed > 0 && imported === 0) {
+    return { error: "Import failed", imported: 0 };
+  }
+
+  return { success: true, imported, failed };
 }
