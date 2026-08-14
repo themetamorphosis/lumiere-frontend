@@ -26,6 +26,62 @@ export const WatchlistItemSchema = z.object({
 
 export const WatchlistItemsSchema = z.array(WatchlistItemSchema);
 
+// --- Share links ---
+export const ShareLinkSchema = z.object({
+    id: z.string(),
+    slug: z.string(),
+    label: z.string().nullable().optional(),
+    statuses: z.array(StatusSchema).default([]),
+    mediaTypes: z.array(MediaTypeSchema).default([]),
+    favoritesOnly: z.boolean().default(false),
+    createdAt: z.string().nullable().optional(),
+    updatedAt: z.string().nullable().optional(),
+});
+
+export const ShareLinkListSchema = z.object({
+    links: z.array(ShareLinkSchema),
+});
+
+// Deliberately has no `notes` field: the public endpoint never sends one, and
+// declaring it here would invite a future caller to render it.
+export const PublicWatchlistItemSchema = z.object({
+    id: z.string(),
+    title: z.string(),
+    mediaType: MediaTypeSchema,
+    status: StatusSchema,
+    favorite: z.boolean(),
+    genres: z.array(z.string()).default([]),
+    description: z.string().nullable().optional(),
+    year: z.number().nullable().optional(),
+    endYear: z.number().nullable().optional(),
+    running: z.boolean().default(false),
+    coverUrl: z.string().nullable().optional(),
+    runtime: z.number().nullable().optional(),
+    createdAt: z.string().nullable().optional(),
+    updatedAt: z.string().nullable().optional(),
+});
+
+export type PublicWatchlistItemPayload = z.infer<typeof PublicWatchlistItemSchema>;
+
+export const PublicWatchlistSchema = z.object({
+    slug: z.string(),
+    label: z.string().nullable().optional(),
+    owner: z.object({
+        name: z.string().nullable().optional(),
+        image: z.string().nullable().optional(),
+    }),
+    filters: z.object({
+        statuses: z.array(StatusSchema).default([]),
+        mediaTypes: z.array(MediaTypeSchema).default([]),
+        favoritesOnly: z.boolean().default(false),
+    }),
+    items: z.array(PublicWatchlistItemSchema),
+    total: z.number(),
+    limit: z.number(),
+    offset: z.number(),
+    has_more: z.boolean(),
+});
+
 // --- Auth ---
 export const UserSchema = z.object({
     id: z.string(),
@@ -94,6 +150,14 @@ export const UploadResponseSchema = z.object({
 // --- Safe parse helpers ---
 export function safeParseWatchlistItems(data: unknown) {
     return WatchlistItemsSchema.safeParse(data);
+}
+
+export function safeParseShareLinks(data: unknown) {
+    return ShareLinkListSchema.safeParse(data);
+}
+
+export function safeParsePublicWatchlist(data: unknown) {
+    return PublicWatchlistSchema.safeParse(data);
 }
 
 export function safeParseUser(data: unknown) {

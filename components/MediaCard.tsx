@@ -112,8 +112,9 @@ export default function MediaCard({
           )}
         </div>
 
-        {/* Hover Action controls (Monospace CLI buttons) */}
-        <div className="absolute top-2 right-2 z-20 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        {/* Hover Action controls (Monospace CLI buttons).
+            touch-visible keeps them on screen where there is no hover. */}
+        <div className="touch-visible absolute top-2 right-2 z-20 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <button
             onClick={handleFavActivate}
             className={`flex h-6 w-6 items-center justify-center font-mono text-[10px] border transition-all ${

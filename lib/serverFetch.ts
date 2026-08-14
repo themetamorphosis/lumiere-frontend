@@ -95,6 +95,27 @@ function buildHeaders(options: RequestInit, token?: string): Headers {
   return headers;
 }
 
+/**
+ * Fetch an endpoint that requires no session.
+ *
+ * Separate from `authedFetch` on purpose: the share pages are rendered for
+ * anonymous visitors, and attaching the *renderer's* cookie there would mean a
+ * logged-in owner previewing their own link sees a different response than the
+ * public does — which is exactly the bug that makes a leak invisible in
+ * testing. Nothing here reads or writes cookies.
+ */
+export async function publicFetch(
+  endpoint: string,
+  options: RequestInit = {},
+): Promise<Response> {
+  const url = endpoint.startsWith("http") ? endpoint : `${API_BASE}${endpoint}`;
+  return fetch(url, {
+    signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+    ...options,
+    headers: buildHeaders(options),
+  });
+}
+
 export async function authedFetch(
   endpoint: string,
   options: RequestInit = {},

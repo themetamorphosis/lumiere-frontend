@@ -16,7 +16,11 @@ vi.mock("@/lib/session", () => ({
   setSessionCookies: (t: unknown) => mockSession.setSessionCookies(t),
 }));
 
-import { authedFetch, __resetRefreshState } from "@/lib/serverFetch";
+import {
+  authedFetch,
+  publicFetch,
+  __resetRefreshState,
+} from "@/lib/serverFetch";
 
 function res(status: number, body: unknown = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -261,5 +265,43 @@ describe("authedFetch", () => {
       expect(results.every((r) => r.status === 401)).toBe(true);
       expect(refreshCalls()).toBe(1);
     });
+  });
+});
+
+describe("publicFetch", () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    mockSession.getAccessToken.mockResolvedValue("access-1");
+    mockSession.getRefreshToken.mockResolvedValue("refresh-1");
+  });
+
+  it("never attaches the renderer's session cookie", async () => {
+    fetchMock.mockResolvedValue(res(200));
+    await publicFetch("/public/watchlist/noor");
+
+    const headers = fetchMock.mock.calls[0][1].headers as Headers;
+    // A logged-in owner previewing their own share link must get exactly the
+    // response a stranger gets, or a leak is invisible in testing.
+    expect(headers.get("Cookie")).toBeNull();
+    expect(mockSession.getAccessToken).not.toHaveBeenCalled();
+  });
+
+  it("does not try to refresh on a 401", async () => {
+    fetchMock.mockResolvedValue(res(401));
+    const result = await publicFetch("/public/watchlist/noor");
+
+    expect(result.status).toBe(401);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("sets a request timeout", async () => {
+    fetchMock.mockResolvedValue(res(200));
+    await publicFetch("/public/watchlist/noor");
+
+    expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
   });
 });

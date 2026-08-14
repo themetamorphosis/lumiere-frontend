@@ -164,8 +164,12 @@ export default function DetailOverlay({
 
                   return (
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-x-12 gap-y-10 items-start mt-2">
-                      {/* LEFT COLUMN: Landscape Trailer Card, Overlapping Poster, and Credits */}
-                      <div className="lg:col-span-6 space-y-6">
+                      {/* Trailer + poster. Explicit column/row placement keeps
+                          the desktop layout (media above credits on the left,
+                          info spanning the right) while `order` lets mobile
+                          stack media → info → credits, so the title is not
+                          buried under the credits list. */}
+                      <div className="order-1 lg:col-start-1 lg:col-span-6 lg:row-start-1">
                         <div className="relative mb-14 w-full">
                           {/* Landscape container */}
                           <div
@@ -267,21 +271,59 @@ export default function DetailOverlay({
                             </div>
                           )}
                         </div>
+                      </div>
 
-                        {/* Credits Section */}
-                        <div className="space-y-3 pt-4">
-                          {/* Directors */}
-                          <div
-                            className={`flex items-center py-3.5 border-b ${isRetro ? "border-tui-border" : "border-white/[0.08]"}`}
+                      {/* Credits Section */}
+                      <div className="order-3 lg:order-2 lg:col-start-1 lg:col-span-6 lg:row-start-2 space-y-3 pt-4">
+                        {/* Directors */}
+                        <div
+                          className={`flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0 py-3.5 border-b ${isRetro ? "border-tui-border" : "border-white/[0.08]"}`}
+                        >
+                          <span
+                            className={`font-semibold sm:w-24 shrink-0 ${isRetro ? "text-tui-text-muted" : "text-zinc-500"}`}
                           >
-                            <span
-                              className={`font-semibold w-24 shrink-0 ${isRetro ? "text-tui-text-muted" : "text-zinc-500"}`}
-                            >
-                              Director
-                            </span>
-                            <div className="flex flex-wrap gap-1.5 flex-1">
-                              {displayWriters.map((w, idx) => (
-                                <React.Fragment key={`${w}-${idx}`}>
+                            Director
+                          </span>
+                          <div className="flex flex-wrap gap-1.5 flex-1">
+                            {displayWriters.map((w, idx) => (
+                              <React.Fragment key={`${w}-${idx}`}>
+                                {idx > 0 && (
+                                  <span
+                                    className={
+                                      isRetro
+                                        ? "text-tui-text-muted"
+                                        : "text-zinc-500"
+                                    }
+                                  >
+                                    ,
+                                  </span>
+                                )}
+                                <a
+                                  href={`https://www.google.com/search?q=${encodeURIComponent(w)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={`${isRetro ? "text-tui-green hover:underline font-bold" : "text-sky-400 hover:underline hover:text-sky-300 transition-colors font-semibold"}`}
+                                >
+                                  {w}
+                                </a>
+                              </React.Fragment>
+                            )) || <span className="text-zinc-400">N/A</span>}
+                          </div>
+                        </div>
+
+                        {/* Stars Row */}
+                        <div
+                          className={`flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0 py-3.5 border-b ${isRetro ? "border-tui-border" : "border-white/[0.08]"}`}
+                        >
+                          <span
+                            className={`font-semibold sm:w-24 shrink-0 ${isRetro ? "text-tui-text-muted" : "text-zinc-500"}`}
+                          >
+                            Stars
+                          </span>
+                          <div className="flex items-center justify-between flex-1 min-w-0">
+                            <div className="flex flex-wrap gap-1.5">
+                              {displayStars.map((s, idx) => (
+                                <React.Fragment key={`${s.name}-${idx}`}>
                                   {idx > 0 && (
                                     <span
                                       className={
@@ -294,117 +336,77 @@ export default function DetailOverlay({
                                     </span>
                                   )}
                                   <a
-                                    href={`https://www.google.com/search?q=${encodeURIComponent(w)}`}
+                                    href={`https://www.google.com/search?q=${encodeURIComponent(s.name)}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className={`${isRetro ? "text-tui-green hover:underline font-bold" : "text-sky-400 hover:underline hover:text-sky-300 transition-colors font-semibold"}`}
                                   >
-                                    {w}
+                                    {s.name}
                                   </a>
                                 </React.Fragment>
                               )) || <span className="text-zinc-400">N/A</span>}
                             </div>
-                          </div>
-
-                          {/* Stars Row */}
-                          <div
-                            className={`flex items-center py-3.5 border-b ${isRetro ? "border-tui-border" : "border-white/[0.08]"}`}
-                          >
-                            <span
-                              className={`font-semibold w-24 shrink-0 ${isRetro ? "text-tui-text-muted" : "text-zinc-500"}`}
+                            <a
+                              href={`https://www.google.com/search?q=${encodeURIComponent(displayStars.map((s) => s.name).join(" "))}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`${isRetro ? "text-tui-green font-bold ml-2 shrink-0 hover:underline" : "text-sky-400 ml-2 shrink-0 font-bold hover:underline hover:text-sky-300 transition-colors"}`}
                             >
-                              Stars
-                            </span>
-                            <div className="flex items-center justify-between flex-1 min-w-0">
-                              <div className="flex flex-wrap gap-1.5">
-                                {displayStars.map((s, idx) => (
-                                  <React.Fragment key={`${s.name}-${idx}`}>
-                                    {idx > 0 && (
-                                      <span
-                                        className={
-                                          isRetro
-                                            ? "text-tui-text-muted"
-                                            : "text-zinc-500"
-                                        }
-                                      >
-                                        ,
-                                      </span>
-                                    )}
-                                    <a
-                                      href={`https://www.google.com/search?q=${encodeURIComponent(s.name)}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className={`${isRetro ? "text-tui-green hover:underline font-bold" : "text-sky-400 hover:underline hover:text-sky-300 transition-colors font-semibold"}`}
+                              &gt;
+                            </a>
+                          </div>
+                        </div>
+
+                        {/* Composer Row */}
+                        <div
+                          className={`flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0 py-3.5 border-b ${isRetro ? "border-tui-border" : "border-white/[0.08]"}`}
+                        >
+                          <span
+                            className={`font-semibold sm:w-24 shrink-0 ${isRetro ? "text-tui-text-muted" : "text-zinc-500"}`}
+                          >
+                            Composer
+                          </span>
+                          <div className="flex flex-wrap gap-1.5 flex-1 justify-start">
+                            {displayComposer && displayComposer.length > 0 ? (
+                              displayComposer.map((name, idx) => (
+                                <React.Fragment key={`${name}-${idx}`}>
+                                  {idx > 0 && (
+                                    <span
+                                      className={
+                                        isRetro
+                                          ? "text-tui-text-muted"
+                                          : "text-zinc-500"
+                                      }
                                     >
-                                      {s.name}
-                                    </a>
-                                  </React.Fragment>
-                                )) || (
-                                  <span className="text-zinc-400">N/A</span>
-                                )}
-                              </div>
+                                      ,
+                                    </span>
+                                  )}
+                                  <a
+                                    href={`https://www.google.com/search?q=${encodeURIComponent(name)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`${isRetro ? "text-tui-green hover:underline font-bold" : "text-sky-400 hover:underline hover:text-sky-300 transition-colors font-semibold"}`}
+                                  >
+                                    {name}
+                                  </a>
+                                </React.Fragment>
+                              ))
+                            ) : (
                               <a
-                                href={`https://www.google.com/search?q=${encodeURIComponent(displayStars.map((s) => s.name).join(" "))}`}
+                                href="https://www.google.com/search?q=Ludwig%20G%C3%B6ransson"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className={`${isRetro ? "text-tui-green font-bold ml-2 shrink-0 hover:underline" : "text-sky-400 ml-2 shrink-0 font-bold hover:underline hover:text-sky-300 transition-colors"}`}
+                                className={`${isRetro ? "text-tui-green hover:underline font-bold" : "text-sky-400 hover:underline hover:text-sky-300 transition-colors font-semibold"}`}
                               >
-                                &gt;
+                                Ludwig Göransson
                               </a>
-                            </div>
-                          </div>
-
-                          {/* Composer Row */}
-                          <div
-                            className={`flex items-center py-3.5 border-b ${isRetro ? "border-tui-border" : "border-white/[0.08]"}`}
-                          >
-                            <span
-                              className={`font-semibold w-24 shrink-0 ${isRetro ? "text-tui-text-muted" : "text-zinc-500"}`}
-                            >
-                              Composer
-                            </span>
-                            <div className="flex flex-wrap gap-1.5 flex-1 justify-start">
-                              {displayComposer && displayComposer.length > 0 ? (
-                                displayComposer.map((name, idx) => (
-                                  <React.Fragment key={`${name}-${idx}`}>
-                                    {idx > 0 && (
-                                      <span
-                                        className={
-                                          isRetro
-                                            ? "text-tui-text-muted"
-                                            : "text-zinc-500"
-                                        }
-                                      >
-                                        ,
-                                      </span>
-                                    )}
-                                    <a
-                                      href={`https://www.google.com/search?q=${encodeURIComponent(name)}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className={`${isRetro ? "text-tui-green hover:underline font-bold" : "text-sky-400 hover:underline hover:text-sky-300 transition-colors font-semibold"}`}
-                                    >
-                                      {name}
-                                    </a>
-                                  </React.Fragment>
-                                ))
-                              ) : (
-                                <a
-                                  href="https://www.google.com/search?q=Ludwig%20G%C3%B6ransson"
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className={`${isRetro ? "text-tui-green hover:underline font-bold" : "text-sky-400 hover:underline hover:text-sky-300 transition-colors font-semibold"}`}
-                                >
-                                  Ludwig Göransson
-                                </a>
-                              )}
-                            </div>
+                            )}
                           </div>
                         </div>
                       </div>
 
                       {/* RIGHT COLUMN: Info details, Ratings, Actions, and Cast */}
-                      <div className="lg:col-span-6 text-left space-y-6">
+                      <div className="order-2 lg:order-3 lg:col-start-7 lg:col-span-6 lg:row-start-1 lg:row-span-2 text-left space-y-6">
                         <div className="space-y-4">
                           <h2
                             className={`text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight ${isRetro ? "text-tui-text uppercase" : "text-white"}`}

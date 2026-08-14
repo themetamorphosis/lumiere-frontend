@@ -41,8 +41,12 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       {/* Global AI Assistant Overlay */}
       <AiChatModal />
 
-      {/* Main content */}
-      <main className="relative z-10 pt-[60px]">{children}</main>
+      {/* Main content.
+          The header is sticky, so it already reserves its own height in flow —
+          extra top padding here just pushed every page down by a dead band.
+          No z-index either: it would open a stacking context that traps page
+          modals underneath the z-50 header. */}
+      <main className="relative">{children}</main>
     </div>
   );
 }

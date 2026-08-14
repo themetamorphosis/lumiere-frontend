@@ -68,7 +68,9 @@ export default function TopNavBar() {
   const [, setToastExiting] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => { setTimeout(() => setMounted(true), 0); }, []);
+  useEffect(() => {
+    setTimeout(() => setMounted(true), 0);
+  }, []);
   const profileRef = useRef<HTMLDivElement>(null);
   const themeRef = useRef<HTMLDivElement>(null);
   const toastShownRef = useRef<Set<string>>(new Set());
@@ -298,8 +300,8 @@ export default function TopNavBar() {
             </div>
           </nav>
 
-          {/* ── Right: Profile & Theme dropdowns ── */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          {/* ── Right: Profile & Theme dropdowns (hidden on mobile — see drawer) ── */}
+          <div className="hidden md:flex items-center gap-2 flex-shrink-0">
             {/* Custom Dropdown Theme Selector */}
             <div className="relative" ref={themeRef}>
               {isRetro ? (
@@ -525,15 +527,15 @@ export default function TopNavBar() {
             transition={{ duration: 0.2, ease: "easeInOut" }}
             className={
               isRetro
-                ? "md:hidden fixed top-[60px] left-0 right-0 z-40 overflow-hidden font-mono text-xs uppercase"
-                : "md:hidden fixed top-[60px] left-0 right-0 z-40 overflow-hidden font-sans text-sm"
+                ? "md:hidden fixed top-20 left-0 right-0 z-40 overflow-hidden font-mono text-xs uppercase"
+                : "md:hidden fixed top-20 left-0 right-0 z-40 overflow-hidden font-sans text-sm"
             }
           >
             <div
               className={
                 isRetro
-                  ? "bg-nav-bg border-b border-nav-border"
-                  : "bg-tui-panel border-b border-tui-border backdrop-blur-2xl shadow-2xl"
+                  ? "bg-nav-bg border-b border-nav-border max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain"
+                  : "bg-tui-panel border-b border-tui-border backdrop-blur-2xl shadow-2xl max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain"
               }
             >
               <div className="px-4 py-3 flex flex-col gap-1">
@@ -547,51 +549,145 @@ export default function TopNavBar() {
                     (tab.href === "/wishlist" &&
                       pathname?.startsWith("/wishlist"));
                   return (
-                    <Link
-                      key={tab.href}
-                      href={
-                        tab.href === "/library"
-                          ? "/library/movies"
-                          : tab.href === "/wishlist"
-                            ? "/wishlist/movies"
-                            : tab.href
-                      }
-                      onClick={(e) => {
-                        if (tab.comingSoon) {
-                          e.preventDefault();
-                          handleComingSoonClick(tab.label);
+                    <React.Fragment key={tab.href}>
+                      <Link
+                        href={
+                          tab.href === "/library"
+                            ? "/library/movies"
+                            : tab.href === "/wishlist"
+                              ? "/wishlist/movies"
+                              : tab.href
                         }
-                        setMobileNavOpen(false);
-                      }}
+                        onClick={(e) => {
+                          if (tab.comingSoon) {
+                            e.preventDefault();
+                            handleComingSoonClick(tab.label);
+                          }
+                          setMobileNavOpen(false);
+                        }}
+                        className={
+                          isRetro
+                            ? `flex items-center gap-3 px-4 py-3 border border-transparent transition-colors ${
+                                isActive
+                                  ? "bg-nav-active-bg text-nav-active-text font-bold"
+                                  : "text-nav-text hover:text-nav-hover-text hover:bg-nav-hover-bg"
+                              }`
+                            : `flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-medium ${
+                                isActive
+                                  ? "bg-tui-input text-tui-amber font-semibold"
+                                  : "text-tui-text-muted hover:text-tui-text hover:bg-tui-input/50"
+                              }`
+                        }
+                      >
+                        <span>{tab.label}</span>
+                        {tab.comingSoon && (
+                          <span
+                            className={
+                              isRetro
+                                ? "ml-auto text-[9px] text-nav-text-muted"
+                                : "ml-auto text-[9px] text-tui-text-muted"
+                            }
+                          >
+                            {isRetro ? "[ DEV ]" : "DEV"}
+                          </span>
+                        )}
+                      </Link>
+
+                      {/* Sub-tabs — the desktop dropdown is hover-only, so mobile
+                          reaches TV/Anime through these inline links instead. */}
+                      {tab.subTabs?.map((sub) => {
+                        const isSubActive = pathname === sub.href;
+                        return (
+                          <Link
+                            key={sub.href}
+                            href={sub.href}
+                            onClick={() => setMobileNavOpen(false)}
+                            className={
+                              isRetro
+                                ? `flex items-center gap-3 pl-8 pr-4 py-2.5 border-l border-nav-border ml-4 transition-colors ${
+                                    isSubActive
+                                      ? "text-nav-active-bg font-bold"
+                                      : "text-nav-text-muted hover:text-nav-hover-text hover:bg-nav-hover-bg"
+                                  }`
+                                : `flex items-center gap-3 pl-8 pr-4 py-2.5 rounded-xl ml-4 transition-colors ${
+                                    isSubActive
+                                      ? "text-tui-amber font-semibold"
+                                      : "text-tui-text-muted hover:text-tui-text hover:bg-tui-input/50"
+                                  }`
+                            }
+                          >
+                            <sub.icon className="h-3.5 w-3.5 opacity-70" />
+                            <span>{sub.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </React.Fragment>
+                  );
+                })}
+
+                {/* Theme + account — hidden from the mobile header bar, so the
+                    drawer is the only way to reach them on small screens. */}
+                <div
+                  className={
+                    isRetro
+                      ? "mt-2 pt-3 border-t border-nav-border flex flex-col gap-1"
+                      : "mt-2 pt-3 border-t border-tui-border flex flex-col gap-1"
+                  }
+                >
+                  {THEMES.map((t) => (
+                    <button
+                      key={t.value}
+                      onClick={() => setTheme(t.value)}
                       className={
                         isRetro
-                          ? `flex items-center gap-3 px-4 py-3 border border-transparent transition-colors ${
-                              isActive
-                                ? "bg-nav-active-bg text-nav-active-text font-bold"
+                          ? `flex items-center gap-3 px-4 py-3 text-left transition-colors cursor-pointer ${
+                              theme === t.value
+                                ? "bg-nav-hover-bg text-nav-active-bg font-bold"
                                 : "text-nav-text hover:text-nav-hover-text hover:bg-nav-hover-bg"
                             }`
-                          : `flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-medium ${
-                              isActive
+                          : `flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors cursor-pointer ${
+                              theme === t.value
                                 ? "bg-tui-input text-tui-amber font-semibold"
                                 : "text-tui-text-muted hover:text-tui-text hover:bg-tui-input/50"
                             }`
                       }
                     >
-                      <span>{tab.label}</span>
-                      {tab.comingSoon && (
-                        <span
-                          className={
-                            isRetro
-                              ? "ml-auto text-[9px] text-nav-text-muted"
-                              : "ml-auto text-[9px] text-tui-text-muted"
-                          }
-                        >
-                          {isRetro ? "[ DEV ]" : "DEV"}
-                        </span>
-                      )}
-                    </Link>
-                  );
-                })}
+                      <t.icon className="h-4 w-4" />
+                      <span>{isRetro ? `[ ${t.label} ]` : t.label}</span>
+                    </button>
+                  ))}
+
+                  {session && (
+                    <>
+                      <Link
+                        href="/profile"
+                        onClick={() => setMobileNavOpen(false)}
+                        className={
+                          isRetro
+                            ? "flex items-center gap-3 px-4 py-3 text-nav-text hover:text-nav-hover-text hover:bg-nav-hover-bg transition-colors"
+                            : "flex items-center gap-3 px-4 py-3 rounded-xl text-tui-text-muted hover:text-tui-text hover:bg-tui-input/50 transition-colors"
+                        }
+                      >
+                        <User className="h-4 w-4" />
+                        <span>{isRetro ? "[ PROFILE ]" : "Profile"}</span>
+                      </Link>
+                      <button
+                        onClick={() => {
+                          setMobileNavOpen(false);
+                          signOut();
+                        }}
+                        className={
+                          isRetro
+                            ? "flex items-center gap-3 px-4 py-3 text-left text-tui-red/80 hover:text-tui-red hover:bg-nav-hover-bg transition-colors cursor-pointer"
+                            : "flex items-center gap-3 px-4 py-3 rounded-xl text-left text-tui-red hover:bg-tui-red/10 transition-colors cursor-pointer"
+                        }
+                      >
+                        <LogOut className="h-4 w-4" />
+                        <span>{isRetro ? "[ SIGN OUT ]" : "Sign Out"}</span>
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </motion.div>

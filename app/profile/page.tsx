@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { updateProfile, uploadAvatar } from "@/app/actions/profile";
 import AppShell from "@/components/layout/AppShell";
+import ShareLinksPanel from "@/components/profile/ShareLinksPanel";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -167,7 +168,7 @@ export default function ProfilePage() {
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center cursor-pointer border-0"
+                  className="touch-visible absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center cursor-pointer border-0"
                 >
                   {uploading ? (
                     <Loader2 className="h-6 w-6 text-white animate-spin" />
@@ -306,6 +307,9 @@ export default function ProfilePage() {
               </motion.button>
             </form>
           </div>
+
+          {/* Public share links */}
+          <ShareLinksPanel />
 
           {/* Account info */}
           <div className="border border-tui-border bg-tui-panel p-6 relative">

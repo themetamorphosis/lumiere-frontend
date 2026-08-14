@@ -19,7 +19,15 @@ import { useRetroTheme } from "@/components/layout/RetroThemeContext";
 import { useLibraryData } from "@/hooks/useLibraryData";
 import { useLibraryFilters } from "@/hooks/useLibraryFilters";
 import { statusText } from "@/lib/utils";
-import { Film, Tv, Sparkles, ChevronDown, Star, Heart } from "lucide-react";
+import {
+  Film,
+  Tv,
+  Sparkles,
+  ChevronDown,
+  Star,
+  Heart,
+  Share2,
+} from "lucide-react";
 
 const SORT_OPTIONS: { value: "recent" | "title" | "year"; label: string }[] = [
   { value: "recent", label: "Recently added" },
@@ -56,7 +64,7 @@ function SortDropdown({
   const current = SORT_OPTIONS.find((o) => o.value === value)?.label ?? value;
 
   return (
-    <div ref={ref} className="relative font-mono text-xs">
+    <div ref={ref} className="relative h-full font-mono text-xs">
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-2 px-5 h-full text-xs font-semibold text-tui-text-muted hover:text-tui-text transition-all uppercase hover:bg-tui-input"
@@ -133,7 +141,7 @@ function GenreDropdown({
   const currentLabel = value ? value.toUpperCase() : "ALL";
 
   return (
-    <div ref={ref} className="relative font-mono text-xs">
+    <div ref={ref} className="relative h-full font-mono text-xs">
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-2 px-5 h-full text-xs font-semibold text-tui-text-muted hover:text-tui-text transition-all uppercase hover:bg-tui-input"
@@ -496,6 +504,13 @@ export default function LibraryPage({
               >
                 Import
               </button>
+              <Link
+                href="/profile#share"
+                className="px-5 h-[52px] flex items-center justify-center gap-2 text-xs font-semibold text-tui-text-muted hover:text-tui-text bg-tui-input/60 border border-tui-border hover:bg-tui-input transition-all uppercase"
+              >
+                <Share2 className="h-4 w-4" />
+                Share
+              </Link>
 
               <div className="flex items-center h-[52px] bg-tui-input/60 border border-tui-border">
                 <SortDropdown value={sort} onChange={setSort} />

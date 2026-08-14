@@ -21,3 +21,32 @@ export type Item = {
   createdAt: number;
   updatedAt: number;
 };
+
+/** A share link as its owner sees it. */
+export type ShareLink = {
+  id: string;
+  slug: string;
+  label?: string;
+  /** Empty means "no filter on this dimension", not "nothing". */
+  statuses: Status[];
+  mediaTypes: MediaType[];
+  favoritesOnly: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+/** A watchlist item as an anonymous visitor sees it — no `notes`, no `userId`. */
+export type PublicItem = Omit<Item, "notes">;
+
+export type PublicWatchlist = {
+  slug: string;
+  label?: string;
+  owner: { name?: string; image?: string };
+  filters: {
+    statuses: Status[];
+    mediaTypes: MediaType[];
+    favoritesOnly: boolean;
+  };
+  items: PublicItem[];
+  total: number;
+};
