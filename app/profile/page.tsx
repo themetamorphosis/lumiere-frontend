@@ -7,6 +7,7 @@ import { useSession, signOut } from "@/components/SessionProvider";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  AtSign,
   User,
   Mail,
   Camera,
@@ -255,6 +256,28 @@ export default function ProfilePage() {
                       className="w-full pl-11 pr-4 py-2.5 bg-tui-input border border-tui-border text-tui-text placeholder:text-tui-text-muted/30 focus:border-tui-text focus:bg-tui-input outline-none transition-all uppercase"
                     />
                   </div>
+                </div>
+
+                {/* Handle — how friends find you in /social */}
+                <div>
+                  <label className="block text-[10px] font-bold text-tui-text-muted uppercase mb-2 tracking-wider">
+                    HANDLE
+                  </label>
+                  <div className="relative flex items-center bg-tui-input border border-tui-border focus-within:border-tui-text">
+                    <AtSign className="ml-3.5 h-4 w-4 text-tui-text-muted/40 shrink-0" />
+                    <input
+                      type="text"
+                      name="handle"
+                      defaultValue={session.user?.handle || ""}
+                      placeholder="yourname"
+                      autoComplete="off"
+                      className="w-full pl-2 pr-4 py-2.5 bg-transparent text-tui-text placeholder:text-tui-text-muted/30 outline-none transition-all"
+                    />
+                  </div>
+                  <p className="text-[10px] text-tui-text-muted/50 uppercase mt-1.5">
+                    * Friends find you by handle. Lowercase letters, numbers and
+                    underscores
+                  </p>
                 </div>
 
                 {/* Email (read-only) */}

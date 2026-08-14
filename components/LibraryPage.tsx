@@ -241,7 +241,9 @@ export default function LibraryPage({
     loadMoreRef,
   } = useLibraryFilters(items, mediaType, mode);
 
-  const { scanlines, setScanlines, theme } = useRetroTheme();
+  // The CRT toggle itself lives in TopNavBar; this page only reads the value
+  // to apply the scanline overlay.
+  const { scanlines, theme } = useRetroTheme();
 
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
@@ -534,19 +536,6 @@ export default function LibraryPage({
               >
                 {mounted && viewMode === "table" ? "Grid" : "List"}
               </button>
-
-              {isRetro && (
-                <button
-                  onClick={() => setScanlines(!scanlines)}
-                  className={`px-5 h-[52px] flex items-center justify-center text-xs font-semibold transition-all uppercase ${
-                    mounted && !scanlines
-                      ? "text-tui-red bg-tui-red/10 border border-tui-red/20 hover:bg-tui-red/20"
-                      : "text-tui-text-muted hover:text-tui-text bg-tui-input/60 border border-tui-border hover:bg-tui-input"
-                  }`}
-                >
-                  {mounted && !scanlines ? "CRT Off" : "CRT On"}
-                </button>
-              )}
             </div>
           </div>
         </div>

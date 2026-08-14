@@ -14,6 +14,8 @@ export type User = {
   name: string | null;
   email: string;
   image: string | null;
+  /** Public identity for /social. Null until the user claims one. */
+  handle?: string | null;
 };
 
 export type Session = {

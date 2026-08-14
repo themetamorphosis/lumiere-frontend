@@ -1,10 +1,12 @@
 "use server";
 
+import { apiErrorMessage } from "@/lib/apiError";
 import { authedFetch } from "@/lib/serverFetch";
 
 export async function updateProfile(prevState: unknown, formData: FormData) {
   const name = (formData.get("name") as string)?.trim();
   const image = (formData.get("image") as string)?.trim();
+  const handle = (formData.get("handle") as string)?.trim().replace(/^@/, "");
 
   if (!name || name.length < 1) {
     return { error: "Name is required." };
@@ -34,11 +36,20 @@ export async function updateProfile(prevState: unknown, formData: FormData) {
   try {
     const res = await authedFetch(`/auth/me`, {
       method: "PATCH",
-      body: JSON.stringify({ name, image: parsedImage || null }),
+      body: JSON.stringify({
+        name,
+        image: parsedImage || null,
+        // Omitted entirely when blank: sending null would ask the backend to
+        // clear a handle the user simply didn't retype, and PATCH treats an
+        // absent key as "leave it alone".
+        ...(handle ? { handle } : {}),
+      }),
     });
 
     if (!res.ok) {
-      return { error: "Failed to update profile." };
+      // The handle rules and the taken-handle conflict both arrive here, and
+      // both are things the user can act on — a flat "failed" would hide them.
+      return { error: await apiErrorMessage(res, "Failed to update profile.") };
     }
   } catch {
     return { error: "Failed to update profile." };

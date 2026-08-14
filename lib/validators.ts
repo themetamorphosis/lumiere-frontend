@@ -26,6 +26,81 @@ export const WatchlistItemSchema = z.object({
 
 export const WatchlistItemsSchema = z.array(WatchlistItemSchema);
 
+// --- Social ---
+// PublicUser has no email field, and neither does this schema: parsing is the
+// last place a leak would be caught before it reaches a component.
+export const PublicUserSchema = z.object({
+    id: z.string(),
+    handle: z.string().nullable().optional(),
+    name: z.string().nullable().optional(),
+    image: z.string().nullable().optional(),
+});
+
+export const FriendsOverviewSchema = z.object({
+    friends: z.array(
+        z.object({
+            user: PublicUserSchema,
+            friendshipId: z.string(),
+            since: z.string().nullable().optional(),
+            unread: z.number().default(0),
+        }),
+    ),
+    incoming: z.array(
+        z.object({
+            id: z.string(),
+            user: PublicUserSchema,
+            createdAt: z.string().nullable().optional(),
+        }),
+    ),
+    outgoing: z.array(
+        z.object({
+            id: z.string(),
+            user: PublicUserSchema,
+            createdAt: z.string().nullable().optional(),
+        }),
+    ),
+});
+
+export const UserSearchResultsSchema = z.object({
+    results: z.array(
+        PublicUserSchema.extend({
+            relationship: z.enum(["none", "friends", "incoming", "outgoing", "self"]),
+        }),
+    ),
+});
+
+export const MessageAttachmentSchema = z.object({
+    title: z.string(),
+    mediaType: MediaTypeSchema,
+    year: z.number().nullable().optional(),
+    coverUrl: z.string().nullable().optional(),
+});
+
+export const ChatMessageSchema = z.object({
+    id: z.string(),
+    senderId: z.string(),
+    recipientId: z.string(),
+    body: z.string().nullable().optional(),
+    attachment: MessageAttachmentSchema.nullable().optional(),
+    readAt: z.string().nullable().optional(),
+    createdAt: z.string().nullable().optional(),
+});
+
+export const MessagePageSchema = z.object({
+    messages: z.array(ChatMessageSchema),
+    has_more: z.boolean(),
+});
+
+export const ConversationListSchema = z.object({
+    conversations: z.array(
+        z.object({
+            user: PublicUserSchema,
+            lastMessage: ChatMessageSchema.nullable().optional(),
+            unread: z.number().default(0),
+        }),
+    ),
+});
+
 // --- Share links ---
 export const ShareLinkSchema = z.object({
     id: z.string(),
@@ -154,6 +229,22 @@ export function safeParseWatchlistItems(data: unknown) {
 
 export function safeParseShareLinks(data: unknown) {
     return ShareLinkListSchema.safeParse(data);
+}
+
+export function safeParseFriends(data: unknown) {
+    return FriendsOverviewSchema.safeParse(data);
+}
+
+export function safeParseUserSearch(data: unknown) {
+    return UserSearchResultsSchema.safeParse(data);
+}
+
+export function safeParseMessagePage(data: unknown) {
+    return MessagePageSchema.safeParse(data);
+}
+
+export function safeParseConversations(data: unknown) {
+    return ConversationListSchema.safeParse(data);
 }
 
 export function safeParsePublicWatchlist(data: unknown) {

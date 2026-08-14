@@ -22,6 +22,61 @@ export type Item = {
   updatedAt: number;
 };
 
+/** Another user as they appear to you. Never carries an email. */
+export type PublicUser = {
+  id: string;
+  handle?: string;
+  name?: string;
+  image?: string;
+};
+
+export type Friend = {
+  user: PublicUser;
+  friendshipId: string;
+  since?: string;
+  unread: number;
+};
+
+export type FriendRequest = {
+  id: string;
+  user: PublicUser;
+  createdAt?: string;
+};
+
+export type FriendsOverview = {
+  friends: Friend[];
+  incoming: FriendRequest[];
+  outgoing: FriendRequest[];
+};
+
+export type Relationship = "none" | "friends" | "incoming" | "outgoing" | "self";
+
+export type UserSearchResult = PublicUser & { relationship: Relationship };
+
+/** A title recommended inside a message — snapshotted at send time. */
+export type MessageAttachment = {
+  title: string;
+  mediaType: MediaType;
+  year?: number;
+  coverUrl?: string;
+};
+
+export type ChatMessage = {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  body?: string;
+  attachment?: MessageAttachment;
+  readAt?: string;
+  createdAt?: string;
+};
+
+export type Conversation = {
+  user: PublicUser;
+  lastMessage?: ChatMessage;
+  unread: number;
+};
+
 /** A share link as its owner sees it. */
 export type ShareLink = {
   id: string;

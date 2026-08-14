@@ -21,6 +21,7 @@ import {
   ChevronDown,
   Terminal,
   Monitor,
+  Scan,
 } from "lucide-react";
 import { useSession, signOut } from "@/components/SessionProvider";
 import { useRetroTheme } from "./RetroThemeContext";
@@ -31,7 +32,21 @@ const THEMES = [
 ] as const;
 
 /* ─── Primary Nav Tabs ─── */
-const NAV_TABS = [
+type NavTab = {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  subTabs?: {
+    href: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }[];
+  /** Renders a "under development" toast instead of navigating. No tab uses
+   * this since /social shipped; declared so the next placeholder can. */
+  comingSoon?: boolean;
+};
+
+const NAV_TABS: NavTab[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   {
     href: "/library",
@@ -54,13 +69,13 @@ const NAV_TABS = [
     ],
   },
   { href: "/discovery", label: "Discovery", icon: Compass },
-  { href: "/social", label: "Social", icon: Users, comingSoon: true },
+  { href: "/social", label: "Social", icon: Users },
 ];
 
 export default function TopNavBar() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const { theme, setTheme } = useRetroTheme();
+  const { theme, setTheme, scanlines, setScanlines } = useRetroTheme();
   const [profileOpen, setProfileOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -302,6 +317,28 @@ export default function TopNavBar() {
 
           {/* ── Right: Profile & Theme dropdowns (hidden on mobile — see drawer) ── */}
           <div className="hidden md:flex items-center gap-2 flex-shrink-0">
+            {/* CRT scanlines toggle — lives beside the theme selector because
+                it is part of the same choice about how the app looks, and it
+                applies to every page rather than just the library. */}
+            {isRetro && (
+              <button
+                onClick={() => setScanlines(!scanlines)}
+                aria-pressed={mounted && scanlines}
+                title="Toggle CRT scanlines"
+                className={
+                  isRetro
+                    ? `flex items-center justify-center h-10 px-3.5 border transition-all uppercase text-xs md:text-sm cursor-pointer ${
+                        mounted && !scanlines
+                          ? "border-nav-border bg-nav-bg text-nav-text hover:border-nav-active-bg hover:text-nav-hover-text"
+                          : "border-nav-active-bg bg-nav-bg text-nav-active-bg"
+                      }`
+                    : "flex items-center justify-center h-10 px-4 rounded-full border border-tui-border bg-tui-panel text-tui-text hover:bg-tui-input transition-all text-xs md:text-sm cursor-pointer"
+                }
+              >
+                [ CRT: {mounted && !scanlines ? "OFF" : "ON"} ]
+              </button>
+            )}
+
             {/* Custom Dropdown Theme Selector */}
             <div className="relative" ref={themeRef}>
               {isRetro ? (
@@ -656,6 +693,23 @@ export default function TopNavBar() {
                       <span>{isRetro ? `[ ${t.label} ]` : t.label}</span>
                     </button>
                   ))}
+
+                  {isRetro && (
+                    <button
+                      onClick={() => setScanlines(!scanlines)}
+                      aria-pressed={mounted && scanlines}
+                      className={
+                        isRetro
+                          ? "flex items-center gap-3 px-4 py-3 text-left text-nav-text hover:text-nav-hover-text hover:bg-nav-hover-bg transition-colors cursor-pointer"
+                          : "flex items-center gap-3 px-4 py-3 rounded-xl text-left text-tui-text-muted hover:text-tui-text hover:bg-tui-input/50 transition-colors cursor-pointer"
+                      }
+                    >
+                      <Scan className="h-4 w-4" />
+                      <span>
+                        [ CRT: {mounted && !scanlines ? "OFF" : "ON"} ]
+                      </span>
+                    </button>
+                  )}
 
                   {session && (
                     <>
