@@ -37,7 +37,7 @@ function Reveal({
 const FEATURES = [
   { num: "01", title: "SMART TRACKING" },
   { num: "02", title: "TMDB INTEGRATION" },
-  { num: "03", title: "CUSTOM LISTS" },
+  { num: "03", title: "WATCHLIST SHARING" },
   { num: "04", title: "NO ALGORITHMS" },
 ];
 
@@ -71,7 +71,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className={`lp ${theme === "light" ? "theme-light" : "theme-dark"}`}>
+    <main id="main-content" tabIndex={-1} className={`lp ${theme === "light" ? "theme-light" : "theme-dark"}`}>
       <div className="lp-frame">
         {/* Noise */}
         <div className="lp-noise" />
@@ -209,12 +209,7 @@ export default function LandingPage() {
                 </h1>
               </motion.div>
 
-              <motion.div
-                className="lp-hero-right"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.45, duration: 0.6 }}
-              >
+              <div className="lp-hero-right">
                 <p className="lp-hero-desc">
                   Movies, TV series and anime — organized
                   by watched, pending, wishlist and
@@ -228,7 +223,7 @@ export default function LandingPage() {
                   <span>{session ? "OPEN DASHBOARD" : "START TRACKING"}</span>
                   <ArrowUpRight className="h-5 w-5" />
                 </Link>
-              </motion.div>
+              </div>
             </div>
           </div>
         </section>
@@ -406,6 +401,6 @@ export default function LandingPage() {
           </div>
         </footer>
       </div>
-    </div>
+    </main>
   );
 }

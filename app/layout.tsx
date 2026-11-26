@@ -1,26 +1,18 @@
+import "@fontsource-variable/inter";
+import "@fontsource-variable/ibm-plex-sans";
+import "@fontsource/ibm-plex-mono/300.css";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/500.css";
+import "@fontsource/ibm-plex-mono/600.css";
+import "@fontsource/ibm-plex-mono/700.css";
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import SessionProvider from "@/components/SessionProvider";
 import { GeistSans } from "geist/font/sans";
-import { Anton, IBM_Plex_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { RetroThemeProvider } from "@/components/layout/RetroThemeContext";
 import MotionProvider from "@/components/MotionProvider";
 import { THEME_SCRIPT } from "@/lib/themeScript";
-
-const anton = Anton({
-  subsets: ["latin"],
-  weight: "400",
-  display: "swap",
-  variable: "--font-display",
-});
-
-const plexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  display: "swap",
-  variable: "--font-mono",
-});
 
 export const metadata: Metadata = {
   title: "Lumière",
@@ -30,7 +22,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
 };
 
 // Inline script injected before React hydration to prevent theme flash.
@@ -49,7 +40,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body
-        className={`${GeistSans.className} ${anton.variable} ${plexMono.variable} min-h-screen antialiased`}
+        className={`${GeistSans.className} min-h-screen antialiased`}
         style={{ background: "var(--bg)", color: "var(--text-primary)" }}
       >
         <a
@@ -61,7 +52,7 @@ export default function RootLayout({
         <MotionProvider>
           <RetroThemeProvider>
             <SessionProvider>
-              <main id="main-content">{children}</main>
+              {children}
             </SessionProvider>
           </RetroThemeProvider>
         </MotionProvider>

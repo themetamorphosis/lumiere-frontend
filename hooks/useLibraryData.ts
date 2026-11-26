@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useTransition, useRef } from "react";
 import { toast } from "sonner";
-import type { Item } from "@/lib/types";
+import type { ImportResult, Item, LibraryLoad } from "@/lib/types";
 import {
   getItems,
   upsertItem,
@@ -21,68 +21,79 @@ export function useLibraryData(userId: string) {
   const [, startTransition] = useTransition();
   const syncingRefs = useRef<Set<string>>(new Set());
 
-  // Mount + load from cache then API
-  useEffect(() => {
-    const t1 = setTimeout(() => setMounted(true), 0);
-    let t2: NodeJS.Timeout | undefined;
+  const [owner, setOwner] = useState(userId);
+  const [loadState, setLoadState] = useState<LibraryLoad["state"] | "loading">("loading");
+  const [loadMessage, setLoadMessage] = useState<string>();
+  const requestVersion = useRef(0);
 
+  const refreshItems = useCallback(async () => {
+    const version = ++requestVersion.current;
     try {
-      const cached = localStorage.getItem(`wv-cache-items-${userId}`);
-      if (cached) {
-        // Validated with the same schema the network path uses. A cache
-        // written by an older build (or edited by hand) would otherwise render
-        // straight into the UI as trusted Item[].
-        const parsed = safeParseWatchlistItems(JSON.parse(cached));
-        if (parsed.success) {
-          t2 = setTimeout(() => {
-            setItems(parsed.data as Item[]);
-            setReady(true);
-          }, 0);
-        } else {
-          localStorage.removeItem(`wv-cache-items-${userId}`);
+      const result = await getItems();
+      if (version !== requestVersion.current) return;
+      setLoadState(result.state);
+      setLoadMessage(result.message);
+      if (result.state === "complete") {
+        setItems(result.items);
+        if (userId !== "guest") {
+          try {
+            localStorage.setItem(`wv-cache-items-${userId}`, JSON.stringify(result.items));
+          } catch {
+            // Storage is optional.
+          }
         }
+      } else if (result.state === "partial") {
+        setItems(result.items);
       }
-    } catch (e) {
-      console.error("Failed to read cache:", e);
-      try {
-        localStorage.removeItem(`wv-cache-items-${userId}`);
-      } catch {}
+    } catch {
+      if (version !== requestVersion.current) return;
+      setLoadState("error");
+      setLoadMessage("Could not load the library. Please try again.");
+    } finally {
+      if (version === requestVersion.current) setReady(true);
     }
-
-    getItems()
-      .then((dbItems) => {
-        setItems(dbItems);
-        setReady(true);
-      })
-      .catch((e) => {
-        console.error("Failed to fetch items:", e);
-        setReady((prev) => prev || true);
-      });
-
-    return () => {
-      clearTimeout(t1);
-      if (t2) clearTimeout(t2);
-    };
   }, [userId]);
 
-  // Persist to cache
-  useEffect(() => {
-    if (!ready) return;
-    try {
-      localStorage.setItem(`wv-cache-items-${userId}`, JSON.stringify(items));
-    } catch (e) {
-      console.error("Failed to write cache:", e);
-    }
-  }, [items, ready, userId]);
+  const invalidateLoading = useCallback(() => { requestVersion.current++; }, []);
 
-  const refreshItems = useCallback(() => {
-    getItems()
-      .then(setItems)
-      .catch((e) => console.error("Refresh failed:", e));
-  }, []);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setOwner(userId);
+      setMounted(true);
+      setReady(false);
+      setLoadState("loading");
+      setLoadMessage(undefined);
+      setItems([]);
+      syncingRefs.current.clear();
+
+      if (userId !== "guest") {
+        const key = `wv-cache-items-${userId}`;
+        try {
+          const cached = localStorage.getItem(key);
+          if (cached) {
+            const parsed = safeParseWatchlistItems(JSON.parse(cached));
+            if (parsed.success && parsed.data.every((item) => item.userId === userId)) {
+              setItems(parsed.data as Item[]);
+            } else {
+              localStorage.removeItem(key);
+            }
+          }
+        } catch {
+          try { localStorage.removeItem(key); } catch {}
+        }
+      }
+
+      void refreshItems();
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      invalidateLoading();
+    };
+  }, [userId, refreshItems, invalidateLoading]);
 
   // Poster enrichment
   const ensureCover = useCallback(async (it: Item): Promise<void> => {
+    if (it.tmdbId != null) return;
     if (it.coverUrl && it.genres && it.genres.length > 0 && it.description)
       return;
 
@@ -152,41 +163,31 @@ export function useLibraryData(userId: string) {
   // a whole-array snapshot. Snapshots were captured at render time, so a failed
   // delete also reverted any favorite toggle that happened in between.
   const handleUpsert = useCallback(
-    (next: Omit<Item, "id" | "createdAt" | "updatedAt">, id?: string) => {
+    async (next: Omit<Item, "id" | "createdAt" | "updatedAt">, id?: string) => {
       const now = Date.now();
-      if (id) {
-        const before = itemsRef.current.find((p) => p.id === id);
-        setItems((current) =>
-          current.map((p) =>
-            p.id === id ? { ...p, ...next, updatedAt: now } : p,
-          ),
-        );
-        startTransition(async () => {
-          const result = await upsertItem({ ...next, id });
-          if (!result.success) {
-            // Restore just this row; everything else keeps its current value.
-            setItems((current) =>
-              before ? current.map((p) => (p.id === id ? before : p)) : current,
-            );
-            toast.error("Update failed — changes reverted");
-          }
-        });
-      } else {
-        const tempId = crypto.randomUUID?.() ?? String(now);
-        setItems((current) => [
-          { id: tempId, createdAt: now, updatedAt: now, ...next },
-          ...current,
-        ]);
-        startTransition(async () => {
-          const result = await upsertItem(next);
-          if (!result.success) {
-            setItems((current) => current.filter((p) => p.id !== tempId));
-            toast.error("Create failed — item removed");
-          } else {
-            refreshItems();
-          }
-        });
+      const before = id ? itemsRef.current.find((item) => item.id === id) : undefined;
+      const itemId = id ?? crypto.randomUUID();
+      setItems((current) => id
+        ? current.map((item) => item.id === id ? { ...item, ...next, updatedAt: now } : item)
+        : [{ id: itemId, createdAt: now, updatedAt: now, ...next }, ...current],
+      );
+
+      const result = await (id
+        ? upsertItem({ ...next, id, year: next.year ?? null })
+        : upsertItem(next)
+      ).catch(() => ({ success: false, error: "Failed to save item" }));
+      if (result.success) {
+        if (!id) await refreshItems();
+        return true;
       }
+
+      setItems((current) => id
+        ? current.map((item) => before && item.id === id ? before : item)
+        : current.filter((item) => item.id !== itemId),
+      );
+      const fallback = id ? "Update failed — changes reverted" : "Create failed — item removed";
+      toast.error(result.error && result.error !== "Failed to save item" ? result.error : fallback);
+      return false;
     },
     [refreshItems],
   );
@@ -233,60 +234,20 @@ export function useLibraryData(userId: string) {
   }, []);
 
   const handleImport = useCallback(
-    (newItems: Item[]) => {
-      // Add items to local state immediately for responsive UI
-      setItems((prev) => {
-        const map = new Map<string, Item>();
-        for (const p of prev)
-          map.set(
-            `${p.mediaType}::${p.title.toLowerCase()}::${p.year ?? ""}`,
-            p,
-          );
-        for (const n of newItems) {
-          const k = `${n.mediaType}::${n.title.toLowerCase()}::${n.year ?? ""}`;
-          if (!map.has(k)) map.set(k, n);
-        }
-        return Array.from(map.values());
-      });
-      startTransition(async () => {
-        const result = await importItemsAction(
-          newItems.map((n) => ({
-            title: n.title,
-            mediaType: n.mediaType,
-            status: n.status,
-            favorite: n.favorite,
-            genres: n.genres,
-            notes: n.notes,
-            year: n.year,
-            endYear: n.endYear,
-            running: n.running,
-            coverUrl: n.coverUrl,
-            runtime: n.runtime,
-          })),
-        );
-        if (!result || !("success" in result) || !result.success) {
-          toast.error("Import failed — please try again");
-          refreshItems();
-          return;
-        }
-        if (
-          "imported" in result &&
-          (result as { imported: number }).imported > 0
-        ) {
-          toast.success(
-            `Imported ${(result as { imported: number }).imported} items`,
-          );
-          setTimeout(() => refreshItems(), 1500);
-        }
-      });
+    async (entries: Omit<Item, "id" | "createdAt" | "updatedAt">[]): Promise<ImportResult> => {
+      const result = await importItemsAction(entries);
+      void refreshItems();
+      return result;
     },
     [refreshItems],
   );
 
   return {
-    items,
+    items: owner === userId ? items : [],
     setItems,
-    ready,
+    ready: owner === userId && ready,
+    loadState: owner === userId ? loadState : "loading",
+    loadMessage,
     mounted,
     refreshItems,
     ensureCover,

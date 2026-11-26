@@ -85,17 +85,17 @@ export default function ShareLinkForm({
             Handle
           </label>
           <div className="flex items-center border border-tui-border bg-tui-input focus-within:border-tui-text">
-            <span className="pl-3 text-tui-text-muted/60">/share/</span>
+            <span className="pl-3 text-tui-text-muted">/share/</span>
             <input
               id="share-handle"
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
               placeholder="my-picks"
               autoComplete="off"
-              className="w-full bg-transparent py-2.5 pl-1 pr-3 text-tui-text placeholder:text-tui-text-muted/30 focus:outline-none"
+              className="w-full bg-transparent py-2.5 pl-1 pr-3 text-tui-text placeholder:text-tui-text-muted focus:outline-none"
             />
           </div>
-          <p className="mt-1.5 text-[10px] uppercase text-tui-text-muted/50">
+          <p className="mt-1.5 text-[10px] uppercase text-tui-text-muted">
             * Lowercase letters, numbers and hyphens. Anyone who guesses the
             handle can read the list — revoke it to cut access.
           </p>
@@ -115,7 +115,7 @@ export default function ShareLinkForm({
           onChange={(e) => setLabel(e.target.value)}
           maxLength={80}
           placeholder="WHAT VISITORS SEE AT THE TOP"
-          className="w-full border border-tui-border bg-tui-input px-3 py-2.5 text-tui-text placeholder:text-tui-text-muted/30 focus:border-tui-text focus:outline-none"
+          className="w-full border border-tui-border bg-tui-input px-3 py-2.5 text-tui-text placeholder:text-tui-text-muted focus:border-tui-text focus:outline-none"
         />
       </div>
 
@@ -157,7 +157,7 @@ export default function ShareLinkForm({
         onClick={() => setFavoritesOnly((v) => !v)}
       />
 
-      <p className="text-[10px] uppercase text-tui-text-muted/50">
+      <p className="text-[10px] uppercase text-tui-text-muted">
         * Select nothing to share everything. Notes are never shared.
       </p>
 

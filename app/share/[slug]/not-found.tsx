@@ -6,7 +6,7 @@ import Link from "next/link";
  */
 export default function ShareNotFound() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-tui-bg px-6 text-tui-text">
+    <main id="main-content" tabIndex={-1} className="flex min-h-screen items-center justify-center bg-tui-bg px-6 text-tui-text">
       <div className="max-w-md text-center">
         <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-tui-text-muted">
           Lumière
@@ -25,6 +25,6 @@ export default function ShareNotFound() {
           Go to Lumière
         </Link>
       </div>
-    </div>
+    </main>
   );
 }

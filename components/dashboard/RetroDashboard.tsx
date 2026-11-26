@@ -44,10 +44,6 @@ export default function RetroDashboard({
           <div className="db-user-email">{userEmail}</div>
         </div>
         <div className="db-header-right">
-          <div className="lp-label mb-2 px-0">SYSTEM BUILD: 2.21</div>
-          <div className="lp-label mb-2 px-0 text-emerald-500">
-            STATUS: ONLINE
-          </div>
           <Link
             href="/profile"
             className="lp-view-link mt-4"
@@ -61,7 +57,7 @@ export default function RetroDashboard({
       {/* ━━━ STATS GRID ━━━ */}
       <div className="db-stats-grid">
         <div className="db-stat-cell">
-          <div className="lp-label px-0">DIRECTORY SIZE</div>
+          <div className="lp-label px-0">TITLES TRACKED</div>
           <div className="db-stat-number">
             {stats.totalStatus.toString().padStart(2, "0")}
           </div>
@@ -70,7 +66,7 @@ export default function RetroDashboard({
           </div>
         </div>
         <div className="db-stat-cell">
-          <div className="lp-label px-0">HOURS CONSUMED</div>
+          <div className="lp-label px-0">WATCH TIME</div>
           <div className="db-stat-number">
             {stats.hoursWatched.toString().padStart(2, "0")}
           </div>
@@ -79,7 +75,7 @@ export default function RetroDashboard({
           </div>
         </div>
         <div className="db-stat-cell">
-          <div className="lp-label px-0">SPOTLIGHT PICKS</div>
+          <div className="lp-label px-0">FAVORITES</div>
           <div className="db-stat-number">
             {stats.counts.favorites.toString().padStart(2, "0")}
           </div>
@@ -88,7 +84,7 @@ export default function RetroDashboard({
           </div>
         </div>
         <div className="db-stat-cell">
-          <div className="lp-label px-0">COMPLETION RATIO</div>
+          <div className="lp-label px-0">COMPLETION RATE</div>
           <div className="db-stat-number">
             {stats.completionRate.toString().padStart(2, "0")}%
           </div>
@@ -191,7 +187,7 @@ export default function RetroDashboard({
 
           {/* Recent Activity */}
           <div className="db-panel" style={{ borderBottom: "none" }}>
-            <div className="lp-label px-0">RECENT TRANSACTIONS</div>
+            <div className="lp-label px-0">RECENT ACTIVITY</div>
             <div className="mt-4 space-y-0">
               {stats.activityLogs.slice(0, 6).map((log, idx) => (
                 <div

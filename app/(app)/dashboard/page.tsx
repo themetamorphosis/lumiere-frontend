@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React, { useState, useEffect, useMemo } from "react";
 import { useSession } from "@/components/SessionProvider";
 import type { MediaType, Status } from "@/lib/types";
@@ -20,6 +21,9 @@ import { useDashboardStats } from "@/hooks/useDashboardStats";
 import { useHeatmapData } from "@/hooks/useHeatmapData";
 import { useTopGenres } from "@/hooks/useTopGenres";
 import { useLibraryData } from "@/hooks/useLibraryData";
+import { findCatalogTitle } from "@/lib/titleIdentity";
+import { toast as notify } from "sonner";
+import LibraryLoadNotice from "@/components/LibraryLoadNotice";
 import TmdbSearchInput from "@/components/TmdbSearchInput";
 import type { TMDBSearchResult } from "@/lib/tmdb";
 
@@ -37,7 +41,7 @@ export default function DashboardPage() {
 
   const { theme } = useRetroTheme();
 
-  const { items, ready, mounted, handleUpsert, ensureCover, syncingRefs } =
+  const { items, ready, loadState, loadMessage, refreshItems, mounted, handleUpsert, ensureCover, syncingRefs } =
     useLibraryData(userId);
   const isRetro = mounted && theme.startsWith("retro");
   const stats = useDashboardStats(items);
@@ -117,14 +121,23 @@ export default function DashboardPage() {
     setShuffledId(pool[Math.floor(Math.random() * pool.length)].id);
   };
 
+  const openQuickAdd = (title: TMDBSearchResult) => {
+    if (findCatalogTitle(items, title)) {
+      notify.info("This edition is already in your library.");
+      return;
+    }
+    setSelectedAddResult(title);
+  };
+
   const handleConfirmQuickAdd = async () => {
     if (!selectedAddResult) return;
     const starsStr =
       quickAddRating > 0
         ? "★".repeat(quickAddRating) + "☆".repeat(5 - quickAddRating) + " "
         : "";
-    await handleUpsert({
+    const saved = await handleUpsert({
       title: selectedAddResult.title,
+      tmdbId: selectedAddResult.tmdbId,
       mediaType: selectedAddResult.mediaType as MediaType,
       status: quickAddStatus,
       favorite: quickAddFav,
@@ -135,6 +148,7 @@ export default function DashboardPage() {
       description: selectedAddResult.overview ?? undefined,
       notes: (starsStr + quickAddNotes).trim() || undefined,
     });
+    if (!saved) return;
     setToast(`Added "${selectedAddResult.title}" to library!`);
     setSelectedAddResult(null);
     setQuickAddStatus("watched");
@@ -163,17 +177,66 @@ export default function DashboardPage() {
     );
   }
 
+  if (loadState !== "complete") {
+    return (
+      <div className="mx-auto max-w-[1800px] px-6 py-8">
+        <LibraryLoadNotice partial={loadState === "partial"} message={loadMessage} onRetry={refreshItems} />
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <section aria-labelledby="first-title-heading" className="mx-auto max-w-5xl px-4 py-10 sm:px-8 sm:py-16">
+        <div className="border border-tui-border bg-tui-panel p-5 sm:p-10">
+          <header className="mb-7 border-b border-tui-border pb-6">
+            <h1 id="first-title-heading" className="font-mono text-3xl font-bold text-tui-text sm:text-5xl">
+              Add your first title
+            </h1>
+            <p className="mt-3 max-w-lg text-tui-text-muted">
+              Choose a category to search for a title, add it manually, or import a list.
+            </p>
+          </header>
+          <nav aria-label="Choose a library category" className="flex flex-wrap gap-3">
+            <Link href="/library/movies#add-title" className="border border-tui-border bg-tui-text px-4 py-3 font-semibold text-tui-bg">Movies</Link>
+            <Link href="/library/tv#add-title" className="border border-tui-border bg-tui-input px-4 py-3 font-semibold">TV shows</Link>
+            <Link href="/library/anime#add-title" className="border border-tui-border bg-tui-input px-4 py-3 font-semibold">Anime</Link>
+          </nav>
+        </div>
+      </section>
+    );
+  }
+
+  const quickAddModal = (
+    <QuickAddModal
+      selectedAddResult={selectedAddResult}
+      quickAddStatus={quickAddStatus}
+      quickAddFav={quickAddFav}
+      quickAddRating={quickAddRating}
+      quickAddNotes={quickAddNotes}
+      setStatus={setQuickAddStatus}
+      setFav={setQuickAddFav}
+      setRating={setQuickAddRating}
+      setNotes={setQuickAddNotes}
+      onConfirm={handleConfirmQuickAdd}
+      onCancel={() => setSelectedAddResult(null)}
+    />
+  );
+
   if (isRetro) {
     return (
-      <RetroDashboard
-        greeting={greeting}
-        userName={userName}
-        userEmail={userEmail}
-        stats={stats}
-        activeSpotlight={activeSpotlight}
-        onQuickAdd={(r) => setSelectedAddResult(r)}
-        toast={toast}
-      />
+      <>
+        <RetroDashboard
+          greeting={greeting}
+          userName={userName}
+          userEmail={userEmail}
+          stats={stats}
+          activeSpotlight={activeSpotlight}
+          onQuickAdd={openQuickAdd}
+          toast={toast}
+        />
+        {quickAddModal}
+      </>
     );
   }
 
@@ -214,7 +277,7 @@ export default function DashboardPage() {
               <div className="relative z-40">
                 <TmdbSearchInput
                   mediaType="movie"
-                  onSelect={(r) => setSelectedAddResult(r)}
+                  onSelect={openQuickAdd}
                   placeholder="Search movies/shows to add..."
                 />
               </div>
@@ -227,19 +290,7 @@ export default function DashboardPage() {
           <ActivityFeed logs={stats.activityLogs} />
           <FavoritesDeck items={stats.favoritesList} />
         </div>
-        <QuickAddModal
-          selectedAddResult={selectedAddResult}
-          quickAddStatus={quickAddStatus}
-          quickAddFav={quickAddFav}
-          quickAddRating={quickAddRating}
-          quickAddNotes={quickAddNotes}
-          setStatus={setQuickAddStatus}
-          setFav={setQuickAddFav}
-          setRating={setQuickAddRating}
-          setNotes={setQuickAddNotes}
-          onConfirm={handleConfirmQuickAdd}
-          onCancel={() => setSelectedAddResult(null)}
-        />
+        {quickAddModal}
         <AnimatePresence>
           {toast && (
             <motion.div

@@ -17,201 +17,53 @@ export type TMDBSearchResult = {
   voteAverage: number | null;
 };
 
-/**
- * Search TMDB via our backend proxy.
- * Returns up to 8 results for the autocomplete dropdown.
- */
-export async function searchTmdb(
-  query: string,
-  type: MediaType,
-  signal?: AbortSignal,
-): Promise<TMDBSearchResult[]> {
-  if (!query || query.trim().length < 2) return [];
+export class TmdbCredentialsError extends Error {}
 
-  try {
-    const params = new URLSearchParams();
-    params.set("query", query.trim());
-    params.set("type", type);
-
-    const res = await fetchApi(`/media/search?${params.toString()}`, {
-      signal,
-    });
-    if (!res.ok) {
-      console.error("[TMDB] search request failed:", res.status);
-      return [];
+async function fetchCatalog(path: string, params: URLSearchParams, signal?: AbortSignal) {
+  const timeout = AbortSignal.timeout(10_000);
+  const response = await fetchApi(`/media/${path}?${params}`, {
+    signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    if (error?.detail?.code === "tmdb_credentials_required") {
+      throw new TmdbCredentialsError("Title search needs a valid TMDB API key.");
     }
-
-    const raw = await res.json();
-    const parsed = TMDBSearchResponseSchema.safeParse(raw);
-    if (!parsed.success) {
-      console.error("TMDB search response validation failed:", parsed.error);
-      return [];
-    }
-    return parsed.data.results;
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") return [];
-    console.error("[TMDB] search fetch error:", err);
-    return [];
+    throw new Error("The title catalogue is temporarily unavailable.");
   }
+  return TMDBSearchResponseSchema.parse(await response.json()).results;
 }
 
-/**
- * Fetch trending media.
- */
-export async function getTrendingMedia(
-  type: MediaType,
-  timeWindow: "day" | "week" = "day",
-  signal?: AbortSignal,
-): Promise<TMDBSearchResult[]> {
-  try {
-    const params = new URLSearchParams();
-    params.set("type", type);
-    params.set("time_window", timeWindow);
-
-    const res = await fetchApi(`/media/trending?${params.toString()}`, {
-      signal,
-    });
-    if (!res.ok) {
-      console.error("[TMDB] trending request failed:", res.status);
-      return [];
-    }
-
-    const raw = await res.json();
-    const parsed = TMDBSearchResponseSchema.safeParse(raw);
-    if (!parsed.success) {
-      console.error(
-        "[TMDB] trending response validation failed:",
-        parsed.error,
-      );
-      return [];
-    }
-    return parsed.data.results;
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") return [];
-    console.error("[TMDB] trending fetch error:", err);
-    return [];
-  }
+export async function searchTmdb(query: string, type: MediaType, signal?: AbortSignal) {
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return [];
+  return fetchCatalog("search", new URLSearchParams({ query: trimmed, type }), signal);
 }
 
-/**
- * Fetch popular media.
- */
-export async function getPopularMedia(
-  type: MediaType,
-  page: number = 1,
-  signal?: AbortSignal,
-): Promise<TMDBSearchResult[]> {
-  try {
-    const params = new URLSearchParams();
-    params.set("type", type);
-    params.set("page", String(page));
-
-    const res = await fetchApi(`/media/popular?${params.toString()}`, {
-      signal,
-    });
-    if (!res.ok) {
-      console.error("[TMDB] popular request failed:", res.status);
-      return [];
-    }
-
-    const raw = await res.json();
-    const parsed = TMDBSearchResponseSchema.safeParse(raw);
-    if (!parsed.success) {
-      console.error("[TMDB] popular response validation failed:", parsed.error);
-      return [];
-    }
-    return parsed.data.results;
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") return [];
-    console.error("[TMDB] popular fetch error:", err);
-    return [];
-  }
+export function getTrendingMedia(type: MediaType, window: "day" | "week" = "day", signal?: AbortSignal) {
+  return fetchCatalog("trending", new URLSearchParams({ type, time_window: window }), signal);
 }
 
-/**
- * Fetch top rated media.
- */
-export async function getTopRatedMedia(
-  type: MediaType,
-  page: number = 1,
-  signal?: AbortSignal,
-): Promise<TMDBSearchResult[]> {
-  try {
-    const params = new URLSearchParams();
-    params.set("type", type);
-    params.set("page", String(page));
-
-    const res = await fetchApi(`/media/top-rated?${params.toString()}`, {
-      signal,
-    });
-    if (!res.ok) {
-      console.error("[TMDB] top-rated request failed:", res.status);
-      return [];
-    }
-
-    const raw = await res.json();
-    const parsed = TMDBSearchResponseSchema.safeParse(raw);
-    if (!parsed.success) {
-      console.error(
-        "[TMDB] top-rated response validation failed:",
-        parsed.error,
-      );
-      return [];
-    }
-    return parsed.data.results;
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") return [];
-    console.error("[TMDB] top-rated fetch error:", err);
-    return [];
-  }
+export function getPopularMedia(type: MediaType, page = 1, signal?: AbortSignal) {
+  return fetchCatalog("popular", new URLSearchParams({ type, page: String(page) }), signal);
 }
 
-/**
- * Discover media with advanced filters.
- */
-export async function discoverMedia(
-  params: {
-    type: MediaType;
-    genre?: string;
-    year?: number;
-    decade?: number;
-    sortBy?: string;
-    page?: number;
-  },
+export function getTopRatedMedia(type: MediaType, page = 1, signal?: AbortSignal) {
+  return fetchCatalog("top-rated", new URLSearchParams({ type, page: String(page) }), signal);
+}
+
+export function discoverMedia(
+  params: { type: MediaType; genre?: string; year?: number; decade?: number; sortBy?: string; page?: number },
   signal?: AbortSignal,
-): Promise<TMDBSearchResult[]> {
-  try {
-    const queryParams = new URLSearchParams();
-    queryParams.set("type", params.type);
-    if (params.genre) queryParams.set("genre", params.genre);
-    if (params.year) queryParams.set("year", String(params.year));
-    if (params.decade) queryParams.set("decade", String(params.decade));
-    if (params.sortBy) queryParams.set("sort_by", params.sortBy);
-    if (params.page) queryParams.set("page", String(params.page));
-
-    const res = await fetchApi(`/media/discover?${queryParams.toString()}`, {
-      signal,
-    });
-    if (!res.ok) {
-      console.error("[TMDB] discover request failed:", res.status);
-      return [];
-    }
-
-    const raw = await res.json();
-    const parsed = TMDBSearchResponseSchema.safeParse(raw);
-    if (!parsed.success) {
-      console.error(
-        "[TMDB] discover response validation failed:",
-        parsed.error,
-      );
-      return [];
-    }
-    return parsed.data.results;
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") return [];
-    console.error("[TMDB] discover fetch error:", err);
-    return [];
-  }
+) {
+  const { type, genre, year, decade, sortBy, page } = params;
+  const query = new URLSearchParams({ type });
+  if (genre) query.set("genre", genre);
+  if (year) query.set("year", String(year));
+  if (decade) query.set("decade", String(decade));
+  if (sortBy) query.set("sort_by", sortBy);
+  if (page) query.set("page", String(page));
+  return fetchCatalog("discover", query, signal);
 }
 
 export type TMDBCastMember = {

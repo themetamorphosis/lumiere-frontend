@@ -7,16 +7,18 @@ import React, {
   useCallback,
   useSyncExternalStore,
 } from "react";
+import { useModalA11y } from "@/hooks/useModalA11y";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import type { MediaType } from "@/lib/types";
-import { searchTmdb, type TMDBSearchResult } from "@/lib/tmdb";
+import { searchTmdb, TmdbCredentialsError, type TMDBSearchResult } from "@/lib/tmdb";
 import { Star, Film } from "lucide-react";
 
 /* ── Props ─────────────────────────────────────────────────── */
 interface TmdbSearchInputProps {
   mediaType: MediaType;
   onSelect: (result: TMDBSearchResult) => void;
+  onAddManually?: (title: string) => void;
   placeholder?: string;
 }
 
@@ -24,11 +26,13 @@ interface TmdbSearchInputProps {
 export default function TmdbSearchInput({
   mediaType,
   onSelect,
+  onAddManually,
   placeholder = "Search to add a title…",
 }: TmdbSearchInputProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<TMDBSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchFailed, setSearchFailed] = useState<"credentials" | "unavailable" | null>(null);
   const [isMobileActive, setIsMobileActive] = useState(false);
   const [isDesktopOpen, setIsDesktopOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
@@ -40,13 +44,30 @@ export default function TmdbSearchInput({
   );
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const mobileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  function closeMobileSearch() {
+    abortRef.current?.abort();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    setIsMobileActive(false);
+    setIsDesktopOpen(false);
+    setLoading(false);
+    setHasSearched(false);
+    setSearchFailed(null);
+    setQuery("");
+    setResults([]);
+  }
+
+  const { containerRef: mobileDialogRef, trapFocus: trapMobileSearch } =
+    useModalA11y(closeMobileSearch, isMobileActive);
+
   /* ── Debounced TMDB search ──────────────────────────────── */
   const doSearch = useCallback(
     (q: string) => {
+      setSearchFailed(null);
       // Cancel previous request
       abortRef.current?.abort();
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -74,13 +95,40 @@ export default function TmdbSearchInput({
             setHasSearched(true);
             setLoading(false);
           }
-        } catch (err: unknown) {
-          if (err instanceof DOMException && err.name === "AbortError") return;
+        } catch (error) {
+          if (controller.signal.aborted) return;
+          setResults([]);
+          setSearchFailed(error instanceof TmdbCredentialsError ? "credentials" : "unavailable");
+          setHasSearched(true);
+          setIsDesktopOpen(true);
           setLoading(false);
         }
       }, 150);
     },
     [mediaType],
+  );
+
+  function addManually() {
+    onAddManually?.(query.trim());
+    closeMobileSearch();
+  }
+
+  const searchError = (
+    <div className="space-y-2 p-4 text-sm">
+      <p role="status">
+        {searchFailed === "credentials"
+          ? "Title search needs a valid TMDB API key."
+          : "Title search is temporarily unavailable."}
+      </p>
+      <div className="flex flex-wrap gap-x-4 gap-y-2">
+        {onAddManually && (
+          <button type="button" className="underline underline-offset-4" onClick={addManually}>Add manually</button>
+        )}
+        {searchFailed === "unavailable" && (
+          <button type="button" className="underline underline-offset-4" onClick={() => doSearch(query)}>Retry</button>
+        )}
+      </div>
+    </div>
   );
 
   /* ── Input change handler ───────────────────────────────── */
@@ -105,6 +153,7 @@ export default function TmdbSearchInput({
     if (!isMobileActive && !isDesktopOpen) return;
 
     if (e.key === "Escape") {
+      if (isMobileActive) return;
       e.preventDefault();
       setIsMobileActive(false);
       setIsDesktopOpen(false);
@@ -150,24 +199,11 @@ export default function TmdbSearchInput({
     return () => document.removeEventListener("mousedown", onClick);
   }, [isDesktopOpen, isMobileActive]);
 
-  /* ── Mobile Scroll Lock ─────────────────────────────────── */
-  useEffect(() => {
-    if (isMobileActive) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [isMobileActive]);
-
   /* ── Cleanup on unmount ─────────────────────────────────── */
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      document.body.style.overflow = "";
     };
   }, []);
 
@@ -197,11 +233,12 @@ export default function TmdbSearchInput({
 
       {/* ── Desktop Inline Search Input ── */}
       <div className="hidden sm:flex relative items-center">
-        <div className="absolute pointer-events-none left-3.5 text-tui-text-muted opacity-80 text-[11px] uppercase font-bold select-none">
+        <div className="absolute pointer-events-none left-3.5 text-tui-text-muted text-[11px] uppercase font-bold select-none">
           {loading ? "..." : "ADD >"}
         </div>
         <input
           ref={inputRef}
+          aria-label="Search TMDB titles"
           type="text"
           value={query}
           onChange={handleChange}
@@ -210,7 +247,7 @@ export default function TmdbSearchInput({
             if (results.length > 0) setIsDesktopOpen(true);
           }}
           placeholder={placeholder}
-          className={`h-11 text-tui-text pl-14 pr-9 text-[13px] uppercase placeholder:text-tui-text-muted/40 outline-none border transition-all duration-150 w-full sm:w-[260px] bg-tui-panel border-tui-border hover:border-tui-text-muted focus:sm:w-[380px] focus:border-tui-text focus:bg-tui-input ${
+          className={`h-11 text-tui-text pl-14 pr-9 text-[13px] uppercase placeholder:text-tui-text-muted outline-none border transition-all duration-150 w-full sm:w-[260px] bg-tui-panel border-tui-border hover:border-tui-text-muted focus:sm:w-[380px] focus:border-tui-text focus:bg-tui-input ${
             query.length > 0 || isDesktopOpen
               ? "sm:w-[380px] bg-tui-input border-tui-text"
               : ""
@@ -248,7 +285,7 @@ export default function TmdbSearchInput({
               scrollbarColor: "rgba(255,255,255,0.1) transparent",
             }}
           >
-            {results.length > 0 ? (
+            {searchFailed ? searchError : results.length > 0 ? (
               <div className="divide-y divide-tui-border-muted">
                 {results.map((r, i) => (
                   <div
@@ -275,7 +312,7 @@ export default function TmdbSearchInput({
                           loading="lazy"
                         />
                       ) : (
-                        <Film className="h-5 w-5 text-tui-text-muted/40" />
+                        <Film className="h-5 w-5 text-tui-text-muted" />
                       )}
                     </div>
 
@@ -350,14 +387,16 @@ export default function TmdbSearchInput({
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.15 }}
                   className="absolute inset-0 bg-tui-bg/98 backdrop-blur-md"
-                  onClick={() => {
-                    setIsMobileActive(false);
-                    setQuery("");
-                    setResults([]);
-                  }}
+                  onClick={closeMobileSearch}
                 />
 
                 <motion.div
+                  ref={mobileDialogRef}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Search TMDB titles"
+                  tabIndex={-1}
+                  onKeyDown={trapMobileSearch}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 8 }}
@@ -370,18 +409,19 @@ export default function TmdbSearchInput({
                       {loading ? "..." : "QUERY >"}
                     </span>
                     <input
-                      ref={inputRef}
+                      ref={mobileInputRef}
                       type="text"
                       value={query}
                       onChange={handleChange}
                       onKeyDown={handleKeyDown}
                       placeholder={placeholder}
-                      autoFocus
+                      aria-label="Search TMDB titles"
+                      data-dialog-autofocus
                       className="
                                           w-full h-12 bg-tui-input border border-tui-border text-tui-text
                                           pl-20 pr-20
                                           text-sm uppercase
-                                          placeholder:text-tui-text-muted/40
+                                          placeholder:text-tui-text-muted
                                           outline-none
                                           focus:border-tui-text
                                           transition-all duration-200
@@ -394,7 +434,7 @@ export default function TmdbSearchInput({
                         onClick={() => {
                           setQuery("");
                           setResults([]);
-                          inputRef.current?.focus();
+                          mobileInputRef.current?.focus();
                         }}
                         className="absolute right-14 text-tui-text-muted hover:text-tui-text transition-colors text-xs font-bold uppercase select-none"
                       >
@@ -402,11 +442,8 @@ export default function TmdbSearchInput({
                       </button>
                     )}
                     <button
-                      onClick={() => {
-                        setIsMobileActive(false);
-                        setQuery("");
-                        setResults([]);
-                      }}
+                      onClick={closeMobileSearch}
+                      aria-label="Close title search"
                       className="absolute right-4 text-tui-text-muted hover:text-tui-text transition-colors text-xs font-bold uppercase select-none p-1"
                     >
                       [X]
@@ -429,7 +466,7 @@ export default function TmdbSearchInput({
                           scrollbarColor: "rgba(255,255,255,0.1) transparent",
                         }}
                       >
-                        {results.length > 0 ? (
+                        {searchFailed ? searchError : results.length > 0 ? (
                           <div className="flex flex-col">
                             {results.map((r, i) => (
                               <div
@@ -446,8 +483,6 @@ export default function TmdbSearchInput({
                                                               }
                                                             `}
                                 onClick={() => handleSelect(r)}
-                                role="button"
-                                tabIndex={0}
                               >
                                 {/* Poster thumbnail */}
                                 <div className="flex-shrink-0 w-[54px] h-[81px] border border-tui-border-muted overflow-hidden bg-tui-bg flex items-center justify-center">
@@ -459,7 +494,7 @@ export default function TmdbSearchInput({
                                       loading="lazy"
                                     />
                                   ) : (
-                                    <Film className="h-5 w-5 text-tui-text-muted/40" />
+                                    <Film className="h-5 w-5 text-tui-text-muted" />
                                   )}
                                 </div>
 

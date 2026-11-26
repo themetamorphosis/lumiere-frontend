@@ -2,6 +2,7 @@
 
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useModalA11y } from "@/hooks/useModalA11y";
 import { Star, Heart, Check, X } from "lucide-react";
 import type { Status } from "@/lib/types";
 import type { TMDBSearchResult } from "@/lib/tmdb";
@@ -33,6 +34,7 @@ export default function QuickAddModal({
     onConfirm,
     onCancel,
 }: QuickAddModalProps) {
+    const { containerRef, trapFocus } = useModalA11y(onCancel, Boolean(selectedAddResult));
     return (
         <AnimatePresence>
             {selectedAddResult && (
@@ -45,6 +47,12 @@ export default function QuickAddModal({
                         onClick={onCancel}
                     />
                     <motion.div
+                        ref={containerRef}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Add title to library"
+                        tabIndex={-1}
+                        onKeyDown={trapFocus}
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -57,7 +65,7 @@ export default function QuickAddModal({
                                 <h2 className="text-lg font-bold text-white">Add to Library</h2>
                                 <p className="text-xs text-neutral-400 mt-0.5 font-mono">{selectedAddResult.title} ({selectedAddResult.year || 'N/A'})</p>
                             </div>
-                            <button onClick={onCancel} className="p-2 rounded-xl hover:bg-white/10 transition cursor-pointer">
+                            <button onClick={onCancel} aria-label="Close add title dialog" className="p-2 rounded-xl hover:bg-white/10 transition cursor-pointer">
                                 <X className="h-5 w-5 text-neutral-400" />
                             </button>
                         </div>
@@ -94,9 +102,11 @@ export default function QuickAddModal({
                                             key={val}
                                             type="button"
                                             onClick={() => setRating(quickAddRating === val ? 0 : val)}
+                                            aria-label={`${val} out of 5 stars`}
+                                            aria-pressed={quickAddRating === val}
                                             className="cursor-pointer transition-transform hover:scale-110"
                                         >
-                                            <Star className={`h-5 w-5 ${val <= quickAddRating ? "fill-current text-amber-400" : "text-neutral-600"}`} />
+                                            <Star className={`h-5 w-5 ${val <= quickAddRating ? "fill-current text-amber-400" : "text-neutral-400"}`} />
                                         </button>
                                     ))}
                                 </div>
@@ -125,7 +135,7 @@ export default function QuickAddModal({
                                     onChange={(e) => setNotes(e.target.value)}
                                     placeholder="Enter notes..."
                                     rows={2}
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3.5 py-2.5 focus:border-amber-400 outline-none resize-none placeholder:text-neutral-600"
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl text-xs text-white px-3.5 py-2.5 focus:border-amber-400 outline-none resize-none placeholder:text-neutral-400"
                                 />
                             </div>
                         </div>

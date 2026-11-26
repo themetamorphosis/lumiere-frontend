@@ -1,79 +1,107 @@
-# Watch Vault Frontend
+# Lumière frontend
 
-[![Deployment Status](https://img.shields.io/badge/Deployment-Live-success?style=for-the-badge)](https://lumiere-frontend.vercel.app)
-[![Next.js](https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
+Lumière (Watch Vault) tracks movies, TV, and anime. The frontend uses Next.js
+16, React 19, TypeScript, and Tailwind CSS 4. The FastAPI backend stores
+accounts, libraries, and share links in PostgreSQL.
 
-The frontend client for Watch Vault, a comprehensive tracking and discovery platform for movies and television series. Built with the Next.js App Router, it delivers a highly performant, responsive, and visually engaging user interface.
+## Run locally
 
-## 🚀 Status
+Keep the frontend and backend checkouts as sibling directories. Use Node from
+`.node-version` with npm, Python 3.11, and PostgreSQL 16.
 
-**This application is actively deployed and live in production.** 
+1. Create a PostgreSQL database and user. In the backend, copy `.env.example`
+   to `.env`. Set `DATABASE_URL`, generate a unique `SECRET_KEY`, and use
+   `http://localhost:3000` for `FRONTEND_URL`. Set `TMDB_API_KEY` to enable
+   title search and discovery. Registration and manual library entries also
+   work with the example placeholder.
+2. From the backend checkout, install dependencies, apply migrations, and
+   start the API.
 
-## 🏗️ Architecture & Tech Stack
+   ```bash
+   python3.11 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   alembic upgrade head
+   uvicorn app.main:app --host 127.0.0.1 --port 8000
+   ```
 
-This repository encompasses the client-side architecture of the Watch Vault platform.
+3. From the frontend checkout, copy `.env.example` to `.env.local`, install
+   from the lockfile, and start Next.js.
 
-*   **Core Framework:** [Next.js](https://nextjs.org/) utilizing the App Router architecture for server-side rendering (SSR), static site generation (SSG), and optimized routing.
-*   **Language:** [TypeScript](https://www.typescriptlang.org/) for static type checking, enhanced developer experience, and maintainability.
-*   **Styling:** [Tailwind CSS](https://tailwindcss.com/) functioning as the primary utility-first CSS framework for rapid and consistent UI development.
-*   **Containerization:** Configured for Docker (`Dockerfile`, `docker-compose.yml`) to ensure consistent environments across local development and production deployments.
-*   **Data Fetching & State:** [Zustand] / React Context (depending on implementation specifics) for client-side state, alongside native Next.js server actions and fetching strategies.
+   ```bash
+   cp .env.example .env.local
+   npm ci
+   npm run dev
+   ```
 
-## 📁 Repository Structure
+Open [Lumière locally](http://localhost:3000).
 
-```text
-lumiere-frontend/
-├── app/               # Next.js App Router (Routes, Layouts, Loading UI, APIs)
-│   ├── (app)/         # Authenticated application routes (Library, Discovery, etc.)
-│   ├── login/         # Authentication flows
-│   └── globals.css    # Global stylesheet imports and Tailwind directives
-├── components/        # Reusable UI components and specific feature modules
-├── lib/               # Utility functions, type definitions, and shared helpers
-├── public/            # Static assets (images, fonts, icons)
-├── Dockerfile         # Docker image configuration for the frontend service
-└── tailwind.config.ts # Tailwind CSS theme and plugin configuration
+### Password recovery
+
+Set the backend's `FRONTEND_URL` to the public frontend origin and configure
+`SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, and any SMTP credentials using the
+backend's `.env.example`. Production and staging require HTTPS reset links
+and SMTP STARTTLS.
+
+For local testing with Mailpit, use `SMTP_HOST=127.0.0.1`, `SMTP_PORT=1025`,
+`SMTP_FROM=accounts@lumiere.test`, and `SMTP_STARTTLS=false` when both
+services run directly on the same host. Open **Forgot your password?** on the
+sign-in page. Reset links expire after 30 minutes and can be used once.
+
+## Production build
+
+```bash
+npm ci
+npm run typecheck
+npm run lint
+npm run test:coverage
+npm run build
+npm start
 ```
 
-## 💻 Local Development Setup
+Set `NEXT_PUBLIC_API_URL` to the browser-visible API base URL, including
+`/api/v1`, before building. Set `API_URL` at runtime if Next.js reaches the
+backend through a different hostname. The build uses bundled fonts. For a
+production install that will not run Chromium tests, use
+`PUPPETEER_SKIP_DOWNLOAD=true npm ci`.
 
-Prerequisites:
-*   Node.js (v18.x or higher recommended)
-*   npm, yarn, pnpm, or bun
+Set `AI_API_KEY` in the Next.js server environment at runtime to enable the
+assistant for signed-in users. `AI_API_URL` and `AI_MODEL` override the provider
+defaults listed in `.env.example`. Without an AI key the launcher stays hidden
+and the chat POST endpoint returns HTTP 503.
 
-1.  **Clone the repository and install dependencies:**
+For Docker Compose, set the backend and optional AI variables in a frontend
+`.env` file or in your shell. Then start Postgres, migrate, and start the app.
 
-    ```bash
-    npm install
-    # or
-    yarn install
-    # or
-    pnpm install
-    ```
+```bash
+docker compose up -d --wait postgres
+docker compose run --rm backend alembic upgrade head
+docker compose up --build
+```
 
-2.  **Environment Configuration:**
-    Ensure you have the required environment variables populated. Check for a `.env.example` file or consult internal documentation for the expected development variables (e.g., backend API URLs, authentication keys).
+## Release checks
 
-3.  **Start the development server:**
+Point the local checks at an API backed by a disposable database with migrations
+applied, and run the frontend with `npm run build` and `npm start`. Both checks
+write fixture data. They default to `http://localhost:3000` for the web app and
+`http://127.0.0.1:8000/api/v1` for the API. Override these addresses with
+`LUMIERE_WEB_URL` and `LUMIERE_API_URL`.
 
-    ```bash
-    npm run dev
-    # or
-    yarn dev
-    ```
-
-4.  **Access the application:**
-    Navigate to [http://localhost:3000](http://localhost:3000) in your development browser.
-
-## 🛠️ Scripts
-
-*   `npm run dev`: Starts the Next.js development server with Hot Module Replacement (HMR).
-*   `npm run build`: Creates an optimized production build of the application.
-*   `npm run start`: Starts a Node.js server to serve the production build (requires `npm run build` first).
-*   `npm run lint`: Executes ESLint to verify code quality and adherence to style guidelines.
-
-## 🤝 Contributing
-
-(Add contribution guidelines, PR conventions, and coding standards here if applicable for internal or external developers).
-
+- `npm run check:e2e` registers a mobile browser user, imports a CSV, reloads the
+  library, opens its public link in an anonymous context, and verifies that
+  revocation returns HTTP 404. GitHub Actions checks out the backend from the
+  `backend_ref` dispatch input, `LUMIERE_BACKEND_REF` repository variable, or
+  backend `master`, in that order. Use a backend ref containing the matching
+  registration, import, and sharing changes. For a private backend checkout,
+  set the `LUMIERE_BACKEND_READ_TOKEN` secret to a read-only credential.
+- `npm run check:performance` imports 10,000 titles, then measures 20 local API
+  reads of 500 titles and five cold library visits. Browser runs use a
+  1440 × 900 viewport, 4× CPU throttling, 25 ms network latency, and 20/10 Mbps
+  down/up. The API budget is 250 ms p95, including JSON parsing. The browser
+  budget is 4,500 ms p95 from navigation until the first result and the full
+  library count are visible.
+- `STAGING_API_URL=https://your-staging-api.example/api/v1 npm run check:staging-tmdb`
+  checks live search and details for *The Matrix* (1999). Configure a valid
+  `TMDB_API_KEY` on the staging backend. To run this in GitHub Actions, add the
+  `STAGING_API_URL` repository variable and select `staging_tmdb` when
+  dispatching the frontend CI workflow.

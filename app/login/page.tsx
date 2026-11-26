@@ -37,7 +37,7 @@ export default function LoginPage() {
 
             const params = new URLSearchParams(window.location.search);
             const callbackUrl = params.get("callbackUrl");
-            if (callbackUrl && callbackUrl.startsWith("/")) {
+            if (callbackUrl && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//") && !callbackUrl.includes("\\")) {
                 router.push(callbackUrl);
             } else {
                 router.push("/dashboard");
@@ -46,7 +46,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div className={`min-h-screen flex flex-col justify-center items-center p-4 relative bg-tui-bg text-tui-text ${isRetro ? `retro-container ${scanlines ? "retro-scanlines" : ""}` : "font-sans"}`}>
+        <main id="main-content" tabIndex={-1} className={`min-h-screen flex flex-col justify-center items-center p-4 relative bg-tui-bg text-tui-text ${isRetro ? `retro-container ${scanlines ? "retro-scanlines" : ""}` : "font-sans"}`}>
             
             <div className="absolute top-6 left-6 z-20">
                 <Link href="/" className="text-xl font-mono font-bold tracking-widest text-tui-text hover:text-tui-amber transition-colors flex items-center gap-2 uppercase">
@@ -64,11 +64,8 @@ export default function LoginPage() {
                 {/* Header */}
                 <div className="text-center mb-8 border-b-2 border-tui-border pb-6">
                     <h1 className="text-2xl font-mono font-bold text-tui-text tracking-widest uppercase mb-2">
-                        AUTH_LOGIN
+                        Sign in
                     </h1>
-                    <p className="text-xs font-mono text-tui-text-muted uppercase tracking-widest">
-                        System Access Required
-                    </p>
                 </div>
 
                 {/* Error message */}
@@ -76,10 +73,11 @@ export default function LoginPage() {
                     <motion.div 
                         initial={{ opacity: 0 }} 
                         animate={{ opacity: 1 }} 
-                        className="mb-6 p-3 bg-red-950/40 border-2 border-red-900 flex items-start gap-3"
+                        role="alert"
+                        className="mb-6 flex items-start gap-3 border border-tui-red bg-tui-panel p-3"
                     >
-                        <AlertTriangle className="h-4 w-4 shrink-0 text-red-500 mt-0.5" />
-                        <span className="text-xs font-mono text-red-400 uppercase tracking-wide leading-relaxed">
+                        <AlertTriangle className="h-4 w-4 shrink-0 text-tui-red mt-0.5" />
+                        <span className="text-xs font-mono text-tui-red uppercase tracking-wide leading-relaxed">
                             {error}
                         </span>
                     </motion.div>
@@ -89,7 +87,7 @@ export default function LoginPage() {
                     {/* Email */}
                     <div className="space-y-2">
                         <label htmlFor="email" className="text-xs font-mono text-tui-text-muted uppercase tracking-widest block">
-                            {'>'} EMAIL_ADDRESS
+                            Email address
                         </label>
                         <div className="relative group">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-tui-text-muted transition-colors group-focus-within:text-tui-amber" />
@@ -99,8 +97,8 @@ export default function LoginPage() {
                                 type="email"
                                 required
                                 autoComplete="email"
-                                placeholder="USER@NODE.LOCAL"
-                                className="w-full bg-tui-input border-2 border-tui-border-muted rounded-none py-3 pl-10 pr-4 text-sm text-tui-text placeholder-tui-text-muted/50 focus:outline-none focus:border-tui-amber focus:text-tui-amber transition-colors font-mono uppercase"
+                                placeholder="you@example.com"
+                                className="w-full bg-tui-input border-2 border-tui-border-muted rounded-none py-3 pl-10 pr-4 text-sm text-tui-text placeholder-tui-text-muted/50 focus:outline-none focus:border-tui-amber focus:text-tui-amber transition-colors font-mono"
                             />
                         </div>
                     </div>
@@ -108,7 +106,7 @@ export default function LoginPage() {
                     {/* Password */}
                     <div className="space-y-2">
                         <label htmlFor="password" className="text-xs font-mono text-tui-text-muted uppercase tracking-widest block">
-                            {'>'} SECURITY_KEY
+                            Password
                         </label>
                         <div className="relative group">
                             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-tui-text-muted transition-colors group-focus-within:text-tui-amber" />
@@ -124,6 +122,10 @@ export default function LoginPage() {
                         </div>
                     </div>
 
+                    <Link href="/forgot-password" className="inline-block text-sm text-tui-text underline underline-offset-4">
+                        Forgot your password?
+                    </Link>
+
                     {/* Submit */}
                     <button
                         type="submit"
@@ -132,12 +134,12 @@ export default function LoginPage() {
                     >
                         {isPending ? (
                             <>
-                                <span className="animate-pulse">[ VERIFYING... ]</span>
+                                <span className="animate-pulse">Signing in…</span>
                             </>
                         ) : (
                             <>
                                 <LogIn className="h-4 w-4" />
-                                <span>[ INITIALIZE_SESSION ]</span>
+                                <span>Sign in</span>
                             </>
                         )}
                     </button>
@@ -146,13 +148,13 @@ export default function LoginPage() {
                 {/* Footer */}
                 <div className="mt-8 pt-6 border-t-2 border-tui-border text-center">
                     <p className="text-xs font-mono text-tui-text-muted uppercase tracking-widest flex items-center justify-center gap-2 flex-wrap">
-                        <span>NO ACCOUNT?</span>
+                        <span>New to Lumière?</span>
                         <Link href="/register" className="text-tui-text hover:text-tui-amber font-bold transition-colors">
-                            [ REGISTER_NODE ]
+                            Create an account
                         </Link>
                     </p>
                 </div>
             </motion.div>
-        </div>
+        </main>
     );
 }

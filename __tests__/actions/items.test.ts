@@ -53,25 +53,25 @@ describe("Server Actions: items", () => {
 
       const result = await getItems();
 
-      expect(result).toHaveLength(1);
-      expect(result[0].title).toBe("Test");
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].title).toBe("Test");
       // Sends an explicit limit rather than relying on the server default,
       // so it behaves identically against both backend versions.
       expect(mockAuthedFetch).toHaveBeenCalledWith(
-        "/watchlist?limit=100&offset=0",
+        "/watchlist?limit=500&offset=0",
         { cache: "no-store" },
       );
     });
 
-    it("returns [] on fetch failure", async () => {
+    it("reports error on fetch failure", async () => {
       mockAuthedFetch.mockResolvedValue(new Response("{}", { status: 500 }));
 
       const result = await getItems();
 
-      expect(result).toEqual([]);
+      expect(result).toMatchObject({ state: "error", items: [] });
     });
 
-    it("returns [] on validation failure", async () => {
+    it("reports error on validation failure", async () => {
       mockAuthedFetch.mockResolvedValue(jsonResponse([{ bad: "data" }]));
       mockSafeParse.mockReturnValue({
         success: false,
@@ -80,7 +80,7 @@ describe("Server Actions: items", () => {
 
       const result = await getItems();
 
-      expect(result).toEqual([]);
+      expect(result).toMatchObject({ state: "error", items: [] });
     });
 
     it("follows has_more across pages", async () => {
@@ -92,7 +92,7 @@ describe("Server Actions: items", () => {
         status: "pending" as const,
         favorite: false,
       });
-      const page1 = Array.from({ length: 100 }, (_, i) => row(`p1-${i}`));
+      const page1 = Array.from({ length: 500 }, (_, i) => row(`p1-${i}`));
       const page2 = [row("p2-0")];
 
       mockAuthedFetch
@@ -105,15 +105,15 @@ describe("Server Actions: items", () => {
 
       const result = await getItems();
 
-      expect(result).toHaveLength(101);
+      expect(result.items).toHaveLength(501);
       expect(mockAuthedFetch).toHaveBeenNthCalledWith(
         1,
-        "/watchlist?limit=100&offset=0",
+        "/watchlist?limit=500&offset=0",
         { cache: "no-store" },
       );
       expect(mockAuthedFetch).toHaveBeenNthCalledWith(
         2,
-        "/watchlist?limit=100&offset=100",
+        "/watchlist?limit=500&offset=500",
         { cache: "no-store" },
       );
     });
@@ -136,7 +136,7 @@ describe("Server Actions: items", () => {
 
       const result = await getItems();
 
-      expect(result).toHaveLength(3);
+      expect(result.items).toHaveLength(3);
       expect(mockAuthedFetch).toHaveBeenCalledTimes(1);
     });
 
@@ -148,7 +148,7 @@ describe("Server Actions: items", () => {
 
       const result = await getItems();
 
-      expect(result).toEqual([]);
+      expect(result).toMatchObject({ state: "error", items: [] });
       expect(mockAuthedFetch).toHaveBeenCalledTimes(1);
     });
 
@@ -164,7 +164,7 @@ describe("Server Actions: items", () => {
         },
       ];
       mockAuthedFetch
-        .mockResolvedValueOnce(jsonResponse({ items: rows, has_more: true }))
+        .mockResolvedValueOnce(jsonResponse({ items: Array.from({ length: 500 }, (_, i) => ({ ...rows[0], id: String(i) })), has_more: true }))
         .mockResolvedValueOnce(new Response("{}", { status: 500 }));
       mockSafeParse.mockImplementation((data) => ({
         success: true,
@@ -173,8 +173,10 @@ describe("Server Actions: items", () => {
 
       const result = await getItems();
 
-      expect(result).toHaveLength(1);
-      expect(result[0].title).toBe("Kept");
+      expect(result.state).toBe("partial");
+      expect(result.items).toHaveLength(500);
+      expect(result.items[0].title).toBe("Kept");
+      expect(mockAuthedFetch).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -303,7 +305,7 @@ describe("Server Actions: items", () => {
       const result = await importItems(items);
 
       // `failed` is new: chunked imports can partially succeed.
-      expect(result).toEqual({ success: true, imported: 3, failed: 0 });
+      expect(result).toEqual({ imported: 3, failed: 0, skipped: 0, results: ["imported", "imported", "imported"] });
       expect(mockAuthedFetch).toHaveBeenCalledWith(
         "/watchlist/batch",
         expect.objectContaining({ method: "POST" }),
@@ -315,11 +317,12 @@ describe("Server Actions: items", () => {
       // backend" and sent one POST per item, hitting the rate limiter.
       // A fresh Response per call: a body can only be read once, so a shared
       // instance would fail on the second chunk.
-      mockAuthedFetch.mockImplementation(async () =>
-        jsonResponse({ success: true, imported: 100 }),
-      );
+      mockAuthedFetch.mockImplementation(async (_url, request) => {
+        const count = JSON.parse(request?.body as string).length;
+        return jsonResponse({ imported: count, results: Array(count).fill("imported") });
+      });
 
-      const items = Array.from({ length: 250 }, (_, i) => ({
+      const items = Array.from({ length: 1001 }, (_, i) => ({
         title: `Film ${i}`,
         mediaType: "movie" as const,
         status: "pending" as const,
@@ -328,14 +331,15 @@ describe("Server Actions: items", () => {
 
       const result = await importItems(items);
 
-      expect(mockAuthedFetch).toHaveBeenCalledTimes(3);
+      expect(mockAuthedFetch).toHaveBeenCalledTimes(11);
       for (const [url, init] of mockAuthedFetch.mock.calls) {
         expect(url).toBe("/watchlist/batch");
         expect(JSON.parse(init!.body as string).length).toBeLessThanOrEqual(
           100,
         );
       }
-      expect(result).toMatchObject({ success: true, imported: 300 });
+      expect(result).toMatchObject({ imported: 1001, failed: 0 });
+      expect(result.results).toHaveLength(1001);
     });
 
     it("sends the exact chunk boundaries", async () => {
@@ -373,8 +377,8 @@ describe("Server Actions: items", () => {
       const result = await importItems(items);
 
       expect(result).toMatchObject({
-        success: true,
         imported: 100,
+        skipped: 0,
         failed: 50,
       });
     });
@@ -393,7 +397,7 @@ describe("Server Actions: items", () => {
         },
       ]);
 
-      expect(result).toMatchObject({ error: "Import failed", imported: 0 });
+      expect(result).toMatchObject({ imported: 0, failed: 1, results: ["unconfirmed"] });
     });
   });
 });

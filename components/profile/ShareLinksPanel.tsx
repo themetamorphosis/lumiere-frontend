@@ -121,7 +121,7 @@ export default function ShareLinksPanel() {
       ) : (
         <>
           {links.length === 0 && !creating && (
-            <p className="mb-6 uppercase text-tui-text-muted/70">
+            <p className="mb-6 uppercase text-tui-text-muted">
               No public links yet. Your library is private.
             </p>
           )}

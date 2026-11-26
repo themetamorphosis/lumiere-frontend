@@ -48,7 +48,7 @@ export default function DetailOverlay({
   onRemoveFromWatchlist,
   onToggleFavorite,
 }: DetailOverlayProps) {
-  useModalA11y(onClose, !!selectedItem);
+  const { containerRef, trapFocus } = useModalA11y(onClose, !!selectedItem);
 
   return (
     <AnimatePresence>
@@ -60,6 +60,12 @@ export default function DetailOverlay({
           }`}
         >
           <div
+            ref={containerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={selectedItem.title}
+            tabIndex={-1}
+            onKeyDown={trapFocus}
             onClick={(e) => e.stopPropagation()}
             className={`relative w-full max-w-6xl flex flex-col max-h-[90vh] ${
               isRetro

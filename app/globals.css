@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 
@@ -10,8 +9,9 @@
   --bg-input: #121212;
   --border-color: #222222;
   --border-color-muted: #161616;
+  --field-border: #756f64;
   --text-primary: #e8e0d0;
-  --text-secondary: #7a7268;
+  --text-secondary: #a69d90;
   --accent-amber: #f0a500;
   --accent-purple: #a78bfa;
   --accent-green: #3dba6e;
@@ -20,7 +20,7 @@
 
   --nav-bg: #111111;
   --nav-border: #222222;
-  --nav-text: #7a7268;
+  --nav-text: #b0a79a;
   --nav-hover-text: #e8e0d0;
   --nav-hover-bg: #1a1a1a;
   --nav-active-bg: #222222;
@@ -41,8 +41,9 @@
   --bg-input: #121212;
   --border-color: #222222;
   --border-color-muted: #161616;
+  --field-border: #756f64;
   --text-primary: #e8e0d0;
-  --text-secondary: #7a7268;
+  --text-secondary: #a69d90;
   --accent-amber: #f0a500;
   --accent-purple: #a78bfa;
   --accent-green: #3dba6e;
@@ -51,7 +52,7 @@
 
   --nav-bg: #111111;
   --nav-border: #222222;
-  --nav-text: #7a7268;
+  --nav-text: #b0a79a;
   --nav-hover-text: #e8e0d0;
   --nav-hover-bg: #161616;
   --nav-active-bg: var(--accent-amber);
@@ -67,23 +68,24 @@
   --bg-input: #e3ddd2;
   --border-color: #d4cec4;
   --border-color-muted: #c4bdb2;
+  --field-border: #786f62;
   --text-primary: #0f0f0f;
-  --text-secondary: #6b6459;
-  --accent-amber: #c0392b;
+  --text-secondary: #524b40;
+  --accent-amber: #a02e24;
   /* Crimson red accent for TUI light mode */
   --accent-purple: #6d3db5;
-  --accent-green: #1a7a4a;
+  --accent-green: #17683c;
   --accent-red: #b91c1c;
   --scanline-color: rgba(107, 100, 89, 0.016);
   /* Very mild sepia/tan ink scanlines for light mode */
 
   --nav-bg: #0f0f0f;
   --nav-border: rgba(255, 255, 255, 0.08);
-  --nav-text: rgba(255, 255, 255, 0.45);
+  --nav-text: #b9b1a4;
   --nav-hover-text: rgba(255, 255, 255, 0.9);
   --nav-hover-bg: rgba(255, 255, 255, 0.05);
-  --nav-active-bg: var(--accent-amber);
-  --nav-active-text: #ffffff;
+  --nav-active-bg: #f0a500;
+  --nav-active-text: #111111;
 
   --background: var(--bg);
   --foreground: var(--text-primary);
@@ -94,7 +96,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
   --color-tui-bg: var(--bg);
   --color-tui-panel: var(--bg-secondary);
@@ -119,6 +121,7 @@
 }
 
 html {
+  scroll-padding-top: 5.5rem;
   scroll-behavior: smooth;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.15) var(--background);
@@ -146,6 +149,25 @@ html::-webkit-scrollbar-thumb {
 
 html::-webkit-scrollbar-thumb:hover {
   background-color: rgba(255, 255, 255, 0.25);
+}
+
+:where(input, textarea, select)[class*="border"]:not([type="file"], [type="checkbox"], [type="radio"]) {
+  border-color: var(--field-border);
+}
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--accent-amber);
+  outline-offset: 3px;
+}
+[data-app-navigation] :focus-visible {
+  outline-color: #ffcb6b;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
 }
 
 body {
@@ -1879,7 +1901,7 @@ body {
 .retro-container h1,
 .retro-container h2,
 .retro-container h3 {
-  font-family: 'IBM Plex Sans', sans-serif !important;
+  font-family: 'IBM Plex Sans Variable', sans-serif !important;
   color: var(--text-primary) !important;
 }
 
@@ -2039,8 +2061,9 @@ body {
   --lp-bg: #0e0e0e;
   --lp-bg-card: #161616;
   --lp-text: #e8e0d0;
-  --lp-text-muted: #6b6459;
-  --lp-accent: #E63946;
+  --lp-text-muted: #aea497;
+  --lp-accent: #ec5963;
+  --lp-cta-bg: #b72a39;
   --lp-border: #2a2a2a;
 }
 
@@ -2050,8 +2073,9 @@ body {
   --lp-bg: #F5F2EC;
   --lp-bg-card: #ffffff;
   --lp-text: #0f0f0f;
-  --lp-text-muted: #6b6459;
-  --lp-accent: #E63946;
+  --lp-text-muted: #595145;
+  --lp-accent: #a62a35;
+  --lp-cta-bg: #b72a39;
   --lp-border: #d4cec3;
 }
 
@@ -2061,8 +2085,9 @@ body {
   --lp-bg: #0e0e0e;
   --lp-bg-card: #161616;
   --lp-text: #e8e0d0;
-  --lp-text-muted: #6b6459;
-  --lp-accent: #E63946;
+  --lp-text-muted: #aea497;
+  --lp-accent: #ec5963;
+  --lp-cta-bg: #b72a39;
   --lp-border: #2a2a2a;
 }
 
@@ -2170,7 +2195,7 @@ body {
 }
 
 .lp-logo {
-  font-family: 'Inter', 'Arial Black', sans-serif;
+  font-family: 'Inter Variable', 'Arial Black', sans-serif;
   font-weight: 900;
   font-size: 17px;
   letter-spacing: -0.02em;
@@ -2277,12 +2302,13 @@ body {
 }
 
 .lp-mobile-link--cta {
-  background: var(--lp-accent);
+  background: var(--lp-cta-bg);
   color: #fff;
 }
 
 .lp-mobile-link--cta:hover {
-  background: #c62f3a;
+  background: #992233;
+  color: #fff;
 }
 
 .lp-divider-h {
@@ -2408,7 +2434,7 @@ body {
 }
 
 .lp-headline {
-  font-family: 'Inter', 'Arial Black', Impact, sans-serif;
+  font-family: 'Inter Variable', 'Arial Black', Impact, sans-serif;
   font-weight: 900;
   font-size: clamp(56px, 11vw, 130px);
   line-height: 0.88;
@@ -2445,7 +2471,7 @@ body {
   align-items: center;
   gap: 12px;
   padding: 16px 28px;
-  background: var(--lp-accent);
+  background: var(--lp-cta-bg);
   color: #fff;
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;
@@ -2459,7 +2485,7 @@ body {
 }
 
 .lp-cta:hover {
-  background: #c62f3a;
+  background: #992233;
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(230, 57, 70, 0.3);
 }
@@ -2539,7 +2565,7 @@ body {
 }
 
 .lp-feature-num {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter Variable', sans-serif;
   font-weight: 800;
   font-size: 26px;
   letter-spacing: -0.02em;
@@ -2591,7 +2617,7 @@ body {
 }
 
 .lp-statement {
-  font-family: 'Inter', 'Arial Black', sans-serif;
+  font-family: 'Inter Variable', 'Arial Black', sans-serif;
   font-weight: 800;
   font-size: clamp(20px, 3vw, 28px);
   line-height: 1.25;
@@ -2678,7 +2704,7 @@ body {
 }
 
 .lp-list-num {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter Variable', sans-serif;
   font-weight: 800;
   font-size: 26px;
   letter-spacing: -0.02em;
@@ -2736,7 +2762,7 @@ body {
 }
 
 .lp-about-headline {
-  font-family: 'Inter', 'Arial Black', sans-serif;
+  font-family: 'Inter Variable', 'Arial Black', sans-serif;
   font-weight: 900;
   font-size: clamp(24px, 3.5vw, 38px);
   line-height: 1.15;
@@ -2785,7 +2811,7 @@ body {
 }
 
 .lp-stat-val {
-  font-family: 'Inter', 'Arial Black', sans-serif;
+  font-family: 'Inter Variable', 'Arial Black', sans-serif;
   font-weight: 900;
   font-size: 32px;
   color: var(--lp-text);
@@ -2811,7 +2837,7 @@ body {
 }
 
 .lp-stat-num {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter Variable', sans-serif;
   font-weight: 900;
   font-size: 42px;
   letter-spacing: -0.03em;
@@ -2843,7 +2869,7 @@ body {
 }
 
 .lp-bottom-headline {
-  font-family: 'Inter', 'Arial Black', sans-serif;
+  font-family: 'Inter Variable', 'Arial Black', sans-serif;
   font-weight: 900;
   font-size: clamp(32px, 7vw, 64px);
   line-height: 1;
@@ -2932,7 +2958,7 @@ body {
   background-position: center;
   background-repeat: no-repeat;
   color: #e8e0d0;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter Variable', sans-serif;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -2958,7 +2984,7 @@ body {
 }
 
 .auth-logo {
-  font-family: 'Inter', 'Arial Black', sans-serif;
+  font-family: 'Inter Variable', 'Arial Black', sans-serif;
   font-weight: 900;
   font-size: 24px;
   letter-spacing: 0.1em;
@@ -3267,7 +3293,7 @@ body {
 }
 
 .db-greeting {
-  font-family: 'Inter', 'Arial Black', sans-serif;
+  font-family: 'Inter Variable', 'Arial Black', sans-serif;
   font-weight: 900;
   font-size: clamp(40px, 6vw, 72px);
   line-height: 1;
@@ -3281,6 +3307,7 @@ body {
 .db-user-email {
   font-size: 14px;
   color: var(--lp-text-muted);
+  overflow-wrap: anywhere;
 }
 
 .db-stats-grid {
@@ -3333,7 +3360,7 @@ body {
 }
 
 .db-stat-number {
-  font-family: 'Inter', 'Arial Black', sans-serif;
+  font-family: 'Inter Variable', 'Arial Black', sans-serif;
   font-weight: 900;
   font-size: clamp(48px, 6vw, 96px);
   line-height: 1;

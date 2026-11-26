@@ -17,6 +17,8 @@ import {
   deleteItem,
   toggleFavorite,
 } from "@/app/actions/items";
+import { findCatalogTitle } from "@/lib/titleIdentity";
+import LibraryLoadNotice from "@/components/LibraryLoadNotice";
 import type { Item, MediaType, Status } from "@/lib/types";
 import { MOVIE_GENRES, TV_GENRES } from "@/lib/discovery-constants";
 import DetailOverlay from "@/components/discovery/DetailOverlay";
@@ -51,6 +53,9 @@ export default function DiscoveryPage() {
   const [spotlightItems, setSpotlightItems] = useState<TMDBSearchResult[]>([]);
   const [spotlightIdx, setSpotlightIdx] = useState<number>(0);
   const [loadingSpotlight, setLoadingSpotlight] = useState(true);
+  const [spotlightError, setSpotlightError] = useState(false);
+  const [spotlightAttempt, setSpotlightAttempt] = useState(0);
+  const [libraryIssue, setLibraryIssue] = useState<{ partial: boolean; message?: string }>();
 
   /* Deep Details state */
   const [selectedItem, setSelectedItem] = useState<TMDBSearchResult | null>(
@@ -97,25 +102,20 @@ export default function DiscoveryPage() {
   };
 
   /* ── Fetch User Watchlist ─────────────────────────────────── */
-  const loadWatchlist = useCallback(() => {
-    getItems()
-      .then((items) => setWatchlist(items))
-      .catch((err) => console.error("Failed to load watchlist:", err));
+  const loadWatchlist = useCallback(async () => {
+    const result = await getItems();
+    if (result.state !== "error") setWatchlist(result.items);
+    setLibraryIssue(result.state === "complete" ? undefined : {
+      partial: result.state === "partial", message: result.message,
+    });
   }, []);
 
   useEffect(() => {
-    loadWatchlist();
+    Promise.resolve().then(loadWatchlist);
   }, [loadWatchlist]);
 
   const getWatchlistItem = useCallback(
-    (res: TMDBSearchResult | null) => {
-      if (!res) return undefined;
-      return watchlist.find(
-        (w) =>
-          w.title.toLowerCase() === res.title.toLowerCase() &&
-          w.mediaType === res.mediaType,
-      );
-    },
+    (result: TMDBSearchResult | null | undefined) => result ? findCatalogTitle(watchlist, result) : undefined,
     [watchlist],
   );
 
@@ -125,23 +125,22 @@ export default function DiscoveryPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoadingSpotlight(true);
     getTrendingMedia(mediaType, "week", controller.signal)
-      .then((res) => {
-        if (!controller.signal.aborted && res.length > 0) {
-          setSpotlightItems(res.slice(0, 5));
-          setSpotlightIdx(0);
-          setLoadingSpotlight(false);
-        }
+      .then((items) => {
+        if (controller.signal.aborted) return;
+        setSpotlightItems(items.slice(0, 5));
+        setSpotlightIdx(0);
+        setSpotlightError(false);
       })
-      .catch((err) => {
-        if (err instanceof DOMException && err.name === "AbortError") return;
-        if (!controller.signal.aborted) {
-          console.error("Failed to fetch spotlight titles:", err);
-          setLoadingSpotlight(false);
-        }
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setSpotlightItems([]);
+        setSpotlightError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingSpotlight(false);
       });
-
     return () => controller.abort();
-  }, [mediaType]);
+  }, [mediaType, spotlightAttempt]);
 
   useEffect(() => {
     if (spotlightItems.length === 0 || loadingSpotlight) return;
@@ -251,7 +250,8 @@ export default function DiscoveryPage() {
   ) => {
     const payload = {
       title: media.title,
-      mediaType: (selectedItem?.mediaType as MediaType) || mediaType,
+      tmdbId: media.tmdbId,
+      mediaType: ("mediaType" in media ? media.mediaType : selectedItem?.mediaType ?? mediaType) as MediaType,
       status: status,
       favorite: false,
       genres: media.genres,
@@ -301,7 +301,7 @@ export default function DiscoveryPage() {
       } pb-16 relative overflow-x-hidden`}
     >
       {/* ── CINEMATIC FULL-BLEED BACKDROP OVERLAY ── */}
-      {!isRetro && spotlightItem && (
+      {!isRetro && !loadingSpotlight && spotlightItem && (
         <div className="absolute top-[-64px] left-0 w-full h-[620px] z-0 overflow-hidden pointer-events-none">
           <AnimatePresence mode="wait">
             {spotlightItem.backdropUrl && (
@@ -323,19 +323,20 @@ export default function DiscoveryPage() {
 
       <div className="relative z-10 mx-auto max-w-[1800px] pt-8">
         {/* ── TOP NAV BAR & MEDIA SELECTOR ─────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center bg-zinc-900/40 backdrop-blur-2xl border border-white/10 p-2 shadow-2xl mb-8 font-sans gap-4 sm:gap-0 mx-3 lg:mx-5">
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center bg-tui-panel border border-tui-border p-2 shadow-2xl mb-8 font-sans gap-4 sm:gap-0 mx-3 lg:mx-5">
           <div className="flex items-center gap-3 px-6 py-2">
-            <div className="bg-white/10 p-2">
+            <div className="bg-tui-input p-2">
               <Compass className="h-5 w-5 text-tui-amber" />
             </div>
-            <span className="font-bold text-white uppercase tracking-wider text-sm">
+            <span className="font-bold text-tui-text uppercase tracking-wider text-sm">
               Discovery Engine
             </span>
           </div>
 
           <div
-            role="radiogroup"
-            className="flex flex-col sm:flex-row items-stretch sm:items-center bg-black/40 p-1 border border-white/5 flex-1 sm:flex-none gap-1 sm:gap-0"
+            role="group"
+            aria-label="Discovery category"
+            className="flex flex-col sm:flex-row items-stretch sm:items-center bg-tui-input p-1 border border-tui-border flex-1 sm:flex-none gap-1 sm:gap-0"
           >
             {(["movie", "tv", "anime"] as MediaType[]).map((type) => {
               const active = mediaType === type;
@@ -351,10 +352,11 @@ export default function DiscoveryPage() {
                 <button
                   key={type}
                   onClick={() => setMediaType(type)}
+                  aria-pressed={active}
                   className={`flex-1 sm:flex-none px-6 py-3 text-xs font-semibold uppercase flex items-center justify-center gap-2 transition-all duration-300 ${
                     active
-                      ? `${accentColor} bg-white/10 shadow-lg`
-                      : "text-tui-text-muted hover:text-white hover:bg-white/5"
+                      ? `${accentColor} bg-tui-panel shadow-lg`
+                      : "text-tui-text-muted hover:text-tui-text hover:bg-tui-panel"
                   }`}
                 >
                   <Icon className={`h-4 w-4 ${active ? accentColor : ""}`} />
@@ -368,6 +370,16 @@ export default function DiscoveryPage() {
         </div>
 
         <div className="px-3 lg:px-5">
+          {libraryIssue && <LibraryLoadNotice {...libraryIssue} onRetry={loadWatchlist} />}
+          {!loadingSpotlight && spotlightError && (
+            <div role="status" className="border border-tui-border bg-tui-panel p-4">
+              <p className="font-bold">Discovery is temporarily unavailable.</p>
+              <button type="button" className="mt-2 underline" onClick={() => setSpotlightAttempt((attempt) => attempt + 1)}>Retry Discovery</button>
+            </div>
+          )}
+          {!loadingSpotlight && !spotlightError && !spotlightItem && (
+            <p role="status" className="border border-tui-border p-4">No trending titles for this category right now.</p>
+          )}
           <DiscoverySpotlight
             spotlightItem={spotlightItem}
             spotlightItems={spotlightItems}
@@ -387,7 +399,7 @@ export default function DiscoveryPage() {
         <div className="flex flex-col w-full mt-6">
           {displayedRows.map((row) => (
             <MediaCarouselRow
-              key={row.id}
+              key={`${row.id}:${spotlightAttempt}`}
               row={row}
               mediaType={mediaType}
               isRetro={isRetro}
@@ -399,7 +411,7 @@ export default function DiscoveryPage() {
           ))}
 
           {/* Infinite Scroll Sentinel for Rows */}
-          {hasMoreRows ? (
+          {!spotlightError && hasMoreRows ? (
             <div
               ref={sentinelRef}
               className="flex justify-center pt-8 pb-16 w-full"
@@ -409,11 +421,7 @@ export default function DiscoveryPage() {
                 [ LOADING_CATEGORIES... ]
               </div>
             </div>
-          ) : (
-            <div className="text-center pt-8 pb-16 font-mono text-xs text-tui-text-muted uppercase tracking-widest">
-              [ END_OF_CATEGORIES ]
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
 

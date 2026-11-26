@@ -51,6 +51,8 @@ export default function MediaCarouselRow({
 }: MediaCarouselRowProps) {
   const [items, setItems] = useState<TMDBSearchResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [atStart, setAtStart] = useState(true);
   const [atEnd, setAtEnd] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -58,7 +60,6 @@ export default function MediaCarouselRow({
   useEffect(() => {
     let mounted = true;
     const controller = new AbortController();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
 
     const fetchData = async () => {
@@ -77,13 +78,16 @@ export default function MediaCarouselRow({
           );
         }
 
-        if (mounted && data && data.length > 0) {
+        if (mounted) {
           setItems(data);
-          setLoading(false);
-        } else if (mounted) {
-          setLoading(false);
+          setFailed(false);
         }
       } catch {
+        if (mounted) {
+          setItems([]);
+          setFailed(true);
+        }
+      } finally {
         if (mounted) setLoading(false);
       }
     };
@@ -94,7 +98,7 @@ export default function MediaCarouselRow({
       mounted = false;
       controller.abort();
     };
-  }, [row, mediaType]);
+  }, [row, mediaType, attempt]);
 
   /* Which arrows are usable. Read straight off the scroller so it stays honest
      through resizes, font loading, and images settling. */
@@ -140,6 +144,14 @@ export default function MediaCarouselRow({
     });
   };
 
+  if (!loading && failed) {
+    return (
+      <div className="mx-3 my-4 border border-tui-border p-4 text-sm lg:mx-5">
+        <span role="status">Could not load {row.title.toLowerCase()}. </span>
+        <button type="button" className="underline" onClick={() => setAttempt((value) => value + 1)}>Retry</button>
+      </div>
+    );
+  }
   if (!loading && items.length === 0) return null;
 
   const arrowBase =

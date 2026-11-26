@@ -70,7 +70,7 @@ export default function PublicWatchlistView({
   const heading = data.label?.trim() || `${ownerName}'s watchlist`;
 
   return (
-    <div className="min-h-screen bg-tui-bg text-tui-text">
+    <main id="main-content" tabIndex={-1} className="min-h-screen bg-tui-bg text-tui-text">
       <div className="mx-auto w-full max-w-[1400px] px-5 pb-24 pt-10 sm:px-8">
         {/* Header */}
         <motion.header
@@ -169,12 +169,12 @@ export default function PublicWatchlistView({
 
         <footer className="mt-20 border-t border-tui-border pt-6 text-center font-mono text-[11px] uppercase tracking-wider text-tui-text-muted">
           Tracked with{" "}
-          <Link href="/" className="text-tui-amber hover:underline">
+          <Link href="/" className="text-tui-amber underline underline-offset-4">
             Lumière
           </Link>
         </footer>
       </div>
-    </div>
+    </main>
   );
 }
 

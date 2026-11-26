@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Search, X } from "lucide-react";
 import { getItems } from "@/app/actions/items";
-import type { Item, MessageAttachment } from "@/lib/types";
+import type { LibraryLoad, MessageAttachment } from "@/lib/types";
 
 /**
  * Pick something from your own library to attach to a message.
@@ -19,23 +19,21 @@ export default function AttachTitlePicker({
   onPick: (attachment: MessageAttachment) => void;
   onClose: () => void;
 }) {
-  const [items, setItems] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [library, setLibrary] = useState<LibraryLoad>();
+  const [attempt, setAttempt] = useState(0);
+  const items = library?.items;
   const [query, setQuery] = useState("");
 
   useEffect(() => {
     let cancelled = false;
-    getItems().then((loaded) => {
-      if (cancelled) return;
-      setItems(loaded);
-      setLoading(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    getItems()
+      .then((result) => { if (!cancelled) setLibrary(result); })
+      .catch(() => { if (!cancelled) setLibrary({ items: [], state: "error" }); });
+    return () => { cancelled = true; };
+  }, [attempt]);
 
   const visible = useMemo(() => {
+    if (!items) return [];
     const q = query.trim().toLowerCase();
     const pool = q
       ? items.filter((i) => i.title.toLowerCase().includes(q))
@@ -71,16 +69,22 @@ export default function AttachTitlePicker({
       </div>
 
       <div className="max-h-56 overflow-y-auto">
-        {loading ? (
+        {library && library.state !== "complete" && (
+          <p role="status" className="p-3 text-sm">
+            {library.state === "partial" ? "The library view is incomplete." : "Could not load the library."}
+            {" "}<button type="button" className="underline" onClick={() => setAttempt(attempt + 1)}>Retry</button>
+          </p>
+        )}
+        {!library ? (
           <div className="flex items-center gap-2 p-4 text-tui-text-muted">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             <span className="font-mono text-[11px] uppercase">
               Loading library
             </span>
           </div>
-        ) : visible.length === 0 ? (
+        ) : visible.length === 0 ? library.state === "complete" && (
           <p className="p-4 font-mono text-[11px] uppercase tracking-wider text-tui-text-muted">
-            {items.length === 0 ? "Your library is empty" : "Nothing matches"}
+            {!items?.length ? "Your library is empty" : "Nothing matches"}
           </p>
         ) : (
           <ul>

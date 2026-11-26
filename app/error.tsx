@@ -14,7 +14,7 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950 text-white">
+    <main id="main-content" tabIndex={-1} className="min-h-screen flex items-center justify-center bg-gray-950 text-white">
       <div className="text-center space-y-6 p-8">
         <h1 className="text-4xl font-bold">Something went wrong</h1>
         <p className="text-gray-400 max-w-md mx-auto">
@@ -27,6 +27,6 @@ export default function Error({
           Try again
         </button>
       </div>
-    </div>
+    </main>
   );
 }

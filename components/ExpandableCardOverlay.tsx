@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useRef, useCallback, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Item } from "@/lib/types";
+import { useModalA11y } from "@/hooks/useModalA11y";
 import { useOutsideClick } from "@/hooks/use-outside-click";
 import { Star, Edit, Trash2, X, Film } from "lucide-react";
 
@@ -37,31 +38,18 @@ export default function ExpandableCardOverlay({
   onDelete: () => void;
   onFav: () => void;
 }) {
-  const panelRef = useRef<HTMLDivElement>(null);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const handleClose = useCallback(() => {
     onClose();
   }, [onClose]);
 
-  useOutsideClick(panelRef, () => {
+  const { containerRef, trapFocus } = useModalA11y(handleClose);
+  const { containerRef: confirmRef, trapFocus: trapConfirmFocus } =
+    useModalA11y(() => setDeleteConfirm(false), deleteConfirm);
+  useOutsideClick(containerRef, () => {
     if (!deleteConfirm) handleClose();
   });
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") handleClose();
-    }
-
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = originalOverflow;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [handleClose]);
 
   const y = yearLabel(item);
   const genres = item.genres?.slice(0, 3) || [];
@@ -96,7 +84,14 @@ export default function ExpandableCardOverlay({
       <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none p-4 pt-16 md:p-0">
         {/* TUI detail panel */}
         <motion.div
-          ref={panelRef}
+          ref={containerRef}
+          role="dialog"
+          aria-modal={deleteConfirm ? undefined : true}
+          aria-hidden={deleteConfirm || undefined}
+          inert={deleteConfirm || undefined}
+          aria-label={item.title}
+          tabIndex={-1}
+          onKeyDown={trapFocus}
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -233,25 +228,31 @@ export default function ExpandableCardOverlay({
             onClick={() => setDeleteConfirm(false)}
           >
             <motion.div
+              ref={confirmRef}
+              role="alertdialog"
+              aria-modal="true"
+              aria-label="Delete title"
+              aria-describedby="delete-title-description"
+              tabIndex={-1}
+              onKeyDown={trapConfirmFocus}
               initial={{ scale: 0.95 }}
               animate={{ scale: 1 }}
               exit={{ scale: 0.95 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-sm bg-tui-panel border border-tui-red p-6 font-mono text-xs"
+              className="mx-4 w-full max-w-sm bg-tui-panel border border-tui-red p-6 font-mono text-xs"
             >
               <div className="text-tui-red font-bold text-sm uppercase tracking-wider mb-2">
-                ! WARNING: DESTRUCTIVE_ACTION
+                Delete title?
               </div>
-              <p className="text-tui-text-muted mb-6">
-                ARE YOU SURE YOU WANT TO DELETE THIS TITLE? THIS OPERATION
-                CANNOT BE UNDONE.
+              <p id="delete-title-description" className="text-tui-text-muted mb-6">
+                Remove {item.title} from your library?
               </p>
               <div className="flex items-center justify-end gap-3 font-bold">
                 <button
                   onClick={() => setDeleteConfirm(false)}
                   className="px-4 py-2 border border-tui-border text-tui-text-muted hover:text-tui-text hover:border-tui-border uppercase transition-all"
                 >
-                  [ NO, CANCEL ]
+                  Cancel
                 </button>
                 <button
                   onClick={() => {
@@ -260,7 +261,7 @@ export default function ExpandableCardOverlay({
                   }}
                   className="px-4 py-2 border border-tui-red bg-tui-red/15 text-tui-red hover:bg-tui-red hover:text-tui-text uppercase transition-all"
                 >
-                  [ YES, DELETE ]
+                  Delete
                 </button>
               </div>
             </motion.div>

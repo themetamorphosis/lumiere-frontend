@@ -39,7 +39,7 @@ export default function TMDBImage({
     if (fallback) return <>{fallback}</>;
     return (
       <div
-        className={`flex items-center justify-center bg-zinc-800 text-zinc-500 text-[10px] font-mono uppercase ${className}`}
+        className={`flex items-center justify-center bg-zinc-800 text-zinc-300 text-[10px] font-mono uppercase ${className}`}
       >
         {alt || "No Image"}
       </div>

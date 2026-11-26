@@ -8,6 +8,9 @@ import type { Item, MediaType, Status } from "@/lib/types";
 import TMDBImage from "@/components/ui/TMDBImage";
 import { SkeletonGrid } from "@/components/ui/Skeleton";
 import MediaCard from "@/components/MediaCard";
+import { toast } from "sonner";
+import LibraryLoadNotice from "@/components/LibraryLoadNotice";
+import { findCatalogTitle } from "@/lib/titleIdentity";
 import EditorModal from "@/components/EditorModal";
 import ImportModal from "@/components/ImportModal";
 import TmdbSearchInput from "@/components/TmdbSearchInput";
@@ -27,6 +30,7 @@ import {
   Star,
   Heart,
   Share2,
+  FilterX,
 } from "lucide-react";
 
 const SORT_OPTIONS: { value: "recent" | "title" | "year"; label: string }[] = [
@@ -215,6 +219,9 @@ export default function LibraryPage({
   const {
     items,
     ready,
+    loadState,
+    loadMessage,
+    refreshItems,
     mounted,
     ensureCover,
     syncingRefs,
@@ -291,10 +298,15 @@ export default function LibraryPage({
 
   const openFromTmdb = useCallback(
     async (result: TMDBSearchResult) => {
+      if (findCatalogTitle(items, { ...result, mediaType })) {
+        toast.info("This edition is already in your library.");
+        return;
+      }
       const now = Date.now();
       const newItem: Item = {
         id: crypto.randomUUID?.() ?? Math.random().toString(16).slice(2),
         title: result.title,
+        tmdbId: result.tmdbId,
         mediaType,
         status: mode === "wishlist" ? "wishlist" : "watched",
         favorite: false,
@@ -310,6 +322,7 @@ export default function LibraryPage({
 
       await handleUpsert({
         title: newItem.title,
+        tmdbId: newItem.tmdbId,
         mediaType: newItem.mediaType,
         status: newItem.status as Status,
         favorite: newItem.favorite,
@@ -319,7 +332,7 @@ export default function LibraryPage({
         description: newItem.description,
       });
     },
-    [mediaType, mode, handleUpsert],
+    [mediaType, mode, handleUpsert, items],
   );
 
   const openEdit = useCallback((it: Item) => {
@@ -327,10 +340,30 @@ export default function LibraryPage({
     setEditOpen(true);
   }, []);
 
+  const openManualEntry = (title = "") => {
+    const now = Date.now();
+    setEditing({
+      id: crypto.randomUUID(),
+      title,
+      mediaType,
+      status: mode === "wishlist" ? "wishlist" : "watched",
+      favorite: false,
+      createdAt: now,
+      updatedAt: now,
+    });
+    setEditOpen(true);
+  };
+
+  const editingExistingItem = editing !== null && items.some((item) => item.id === editing.id);
+  const closeEditor = () => {
+    setEditOpen(false);
+    setEditing(null);
+  };
+
   const basePath = mode === "wishlist" ? "/wishlist" : "/library";
   const SUB_TABS = [
     { href: `${basePath}/movies`, label: "Movies", icon: Film },
-    { href: `${basePath}/tv`, label: "TV Shows", icon: Tv },
+    { href: `${basePath}/tv`, label: "TV", icon: Tv },
     { href: `${basePath}/anime`, label: "Anime", icon: Sparkles },
   ];
 
@@ -369,14 +402,15 @@ export default function LibraryPage({
                     <Link
                       key={tab.href}
                       href={tab.href}
-                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 text-xs font-semibold transition-all duration-300 ${
+                      aria-current={isActive ? "page" : undefined}
+                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-2 py-3 text-xs font-semibold transition-all duration-300 sm:px-4 ${
                         isActive
                           ? `bg-tui-input ${activeBorderClass.replace("border-", "text-")} shadow-lg`
                           : "text-tui-text-muted hover:text-tui-text hover:bg-tui-input/50"
                       }`}
                     >
                       <tab.icon className="h-4 w-4" />
-                      <span className="hidden sm:inline">{tab.label}</span>
+                      <span>{tab.label}</span>
                     </Link>
                   );
                 })}
@@ -386,6 +420,7 @@ export default function LibraryPage({
               <div className="flex items-center bg-tui-input/60 p-1 border border-tui-border flex-1">
                 <Link
                   href={`/library/${mediaPath}`}
+                  aria-current={mode === "library" ? "page" : undefined}
                   onClick={() => setOnlyFav(false)}
                   className={`flex-1 flex items-center justify-center px-4 py-3 text-xs font-semibold transition-all duration-300 ${
                     mode === "library" && !onlyFav
@@ -397,6 +432,7 @@ export default function LibraryPage({
                 </Link>
                 <Link
                   href={`/wishlist/${mediaPath}`}
+                  aria-current={mode === "wishlist" ? "page" : undefined}
                   onClick={() => setOnlyFav(false)}
                   className={`flex-1 flex items-center justify-center px-4 py-3 text-xs font-semibold transition-all duration-300 ${
                     mode === "wishlist" && !onlyFav
@@ -408,6 +444,8 @@ export default function LibraryPage({
                 </Link>
                 <button
                   onClick={() => setOnlyFav(!onlyFav)}
+                  aria-label="Show favorites only"
+                  aria-pressed={onlyFav}
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-semibold transition-all duration-300 ${
                     onlyFav
                       ? "text-tui-amber bg-tui-input shadow-lg"
@@ -423,13 +461,13 @@ export default function LibraryPage({
             </div>
 
             {/* Right: Stats */}
-            <div className="flex items-center justify-center gap-6 px-6 py-2 w-full xl:w-auto">
+            <div role="group" aria-label="Library totals" className="flex items-center justify-center gap-6 px-6 py-2 w-full xl:w-auto">
               <div className="flex flex-col items-center">
                 <span className="text-[10px] text-tui-text-muted uppercase tracking-wider font-semibold">
                   TOTAL
                 </span>
                 <span className="text-xl font-bold text-tui-text leading-none mt-1">
-                  {pageItems.length}
+                  {loadState === "complete" ? pageItems.length : "—"}
                 </span>
               </div>
               <div className="w-px h-8 bg-tui-border"></div>
@@ -438,7 +476,7 @@ export default function LibraryPage({
                   WATCHED
                 </span>
                 <span className="text-xl font-bold text-tui-green leading-none mt-1">
-                  {pageItems.filter((it) => it.status === "watched").length}
+                  {loadState === "complete" ? pageItems.filter((it) => it.status === "watched").length : "—"}
                 </span>
               </div>
               <div className="w-px h-8 bg-tui-border"></div>
@@ -447,7 +485,7 @@ export default function LibraryPage({
                   WISHLIST
                 </span>
                 <span className="text-xl font-bold text-tui-purple leading-none mt-1">
-                  {pageItems.filter((it) => it.status === "wishlist").length}
+                  {loadState === "complete" ? pageItems.filter((it) => it.status === "wishlist").length : "—"}
                 </span>
               </div>
             </div>
@@ -492,14 +530,22 @@ export default function LibraryPage({
             </div>
 
             {/* Actions Toolbar */}
-            <div className="flex flex-wrap lg:flex-nowrap items-center gap-2">
+            <div id="add-title" role="group" aria-label="Add to your library" tabIndex={-1} className="flex min-w-0 flex-wrap items-center gap-2">
               <div className="flex flex-1 lg:flex-none items-center bg-tui-input/60 border border-tui-border px-2 h-[52px]">
                 <TmdbSearchInput
                   mediaType={mediaType}
                   onSelect={openFromTmdb}
+                  onAddManually={openManualEntry}
                   placeholder="Add from TMDB..."
                 />
               </div>
+              <button
+                type="button"
+                onClick={() => openManualEntry()}
+                className="flex h-[52px] items-center justify-center border border-tui-border bg-tui-input/60 px-4 text-xs font-semibold uppercase text-tui-text hover:bg-tui-input"
+              >
+                Add manually
+              </button>
               <button
                 onClick={() => setImportOpen(true)}
                 className="px-5 h-[52px] flex items-center justify-center text-xs font-semibold text-tui-text-muted hover:text-tui-text bg-tui-input/60 border border-tui-border hover:bg-tui-input transition-all uppercase"
@@ -539,6 +585,13 @@ export default function LibraryPage({
             </div>
           </div>
         </div>
+
+        {loadState === "loading" && items.length > 0 && (
+          <p role="status" className="mb-4 text-sm">Showing saved titles while the library refreshes.</p>
+        )}
+        {(loadState === "error" || loadState === "partial") && (
+          <LibraryLoadNotice partial={items.length > 0} message={loadMessage} onRetry={refreshItems} />
+        )}
 
         {/* Media display grid/table */}
 
@@ -589,7 +642,7 @@ export default function LibraryPage({
                                   className="w-full h-full object-cover filter brightness-90 group-hover:brightness-100 transition-all"
                                 />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center text-[8px] text-tui-text-muted/60">
+                                <div className="w-full h-full flex items-center justify-center text-[8px] text-tui-text-muted">
                                   N/A
                                 </div>
                               )}
@@ -657,7 +710,7 @@ export default function LibraryPage({
                         <td
                           colSpan={6}
                           ref={loadMoreRef}
-                          className="h-10 text-center text-tui-text-muted/60 uppercase text-[10px]"
+                          className="h-10 text-center text-tui-text-muted uppercase text-[10px]"
                         >
                           [ LOADING MORE TITLES ]
                         </td>
@@ -692,48 +745,34 @@ export default function LibraryPage({
                 )}
               </motion.div>
             )
-          ) : (
+          ) : loadState === "complete" ? (
             <div
               key="empty"
               className="flex h-[40vh] items-center justify-center text-center w-full"
             >
-              <EmptyState
-                icon={
-                  mode === "wishlist" ? (
-                    <Heart className="h-8 w-8 text-tui-text-muted" />
-                  ) : (
-                    <Film className="h-8 w-8 text-tui-text-muted" />
-                  )
-                }
-                headline={
-                  mode === "wishlist"
-                    ? "Your wishlist directory is empty"
-                    : "No titles found in database"
-                }
-                subtext={
-                  mode === "wishlist"
-                    ? "Search and add titles to begin building your watchlist queue."
-                    : "No media matches the current filters. Adjust your query or import new items."
-                }
-                ctaLabel={
-                  mode === "wishlist"
-                    ? "+ Add Wishlist Title"
-                    : "+ Add Media Title"
-                }
-                onCta={() => {
-                  // Trigger TMDB search focus
-                  const inputEl = document.querySelector(
-                    'input[placeholder*="ADD TMDB TITLE"]',
-                  ) as HTMLInputElement;
-                  if (inputEl) {
-                    inputEl.focus();
-                  } else {
-                    setImportOpen(true);
-                  }
-                }}
-              />
+              {query || onlyFav || genreFilter ? (
+                <EmptyState
+                  icon={<FilterX className="h-8 w-8 text-tui-text-muted" />}
+                  headline="No titles match these filters"
+                  subtext="Clear the filters to see all titles in this category."
+                  ctaLabel="Clear filters"
+                  onCta={() => {
+                    setQuery("");
+                    setOnlyFav(false);
+                    setGenreFilter(null);
+                  }}
+                />
+              ) : (
+                <EmptyState
+                  icon={mode === "wishlist" ? <Heart className="h-8 w-8" /> : <Film className="h-8 w-8" />}
+                  headline={mode === "wishlist" ? "Your wishlist is empty" : "Add your first title"}
+                  subtext="Search TMDB, add a title manually, or import a list."
+                  ctaLabel="Add manually"
+                  onCta={() => openManualEntry()}
+                />
+              )}
             </div>
-          )}
+          ) : null}
         </AnimatePresence>
 
         <AnimatePresence mode="wait">
@@ -766,22 +805,16 @@ export default function LibraryPage({
       {editOpen && editing && (
         <EditorModal
           item={editing}
-          onClose={() => {
-            setEditOpen(false);
-            setEditing(null);
+          onClose={closeEditor}
+          onChange={setEditing}
+          onSave={async (payload) => {
+            const saved = await handleUpsert(payload, editingExistingItem ? editing.id : undefined);
+            if (saved) closeEditor();
           }}
-          onChange={(next) => setEditing(next)}
-          onSave={(payload) => {
-            const exists = items.some((x) => x.id === editing.id);
-            handleUpsert(payload, exists ? editing.id : undefined);
-            setEditOpen(false);
-            setEditing(null);
-          }}
-          onDelete={() => {
+          onDelete={editingExistingItem ? () => {
             handleDelete(editing.id);
-            setEditOpen(false);
-            setEditing(null);
-          }}
+            closeEditor();
+          } : undefined}
         />
       )}
 
@@ -789,10 +822,8 @@ export default function LibraryPage({
         <ImportModal
           defaultMediaType={mediaType}
           onClose={() => setImportOpen(false)}
-          onImport={(newItems) => {
-            handleImport(newItems);
-            setImportOpen(false);
-          }}
+          defaultStatus={mode === "wishlist" ? "wishlist" : "watched"}
+          onImport={handleImport}
         />
       )}
     </div>

@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const cookieStore = { get: vi.fn() };
-vi.mock("next/headers", () => ({
-  cookies: vi.fn(async () => cookieStore),
+vi.mock("@/lib/serverFetch", () => ({
+  fetchWithSession: vi.fn(),
+  SERVER_API_BASE: "http://127.0.0.1:8000/api/v1",
 }));
 
-import { POST, __resetChatRateLimit } from "@/app/api/chat/route";
+import { GET, POST } from "@/app/api/chat/route";
+import { __resetChatRateLimit } from "@/lib/chatRateLimit";
+import { fetchWithSession } from "@/lib/serverFetch";
 
 /** Encode a list of OpenAI-style SSE deltas as a streaming response body. */
 function sseStream(chunks: unknown[]): Response {
@@ -56,22 +58,29 @@ describe("POST /api/chat", () => {
     vi.clearAllMocks();
     // The limiter is module-level state; without this it leaks across cases.
     __resetChatRateLimit();
+    vi.mocked(fetchWithSession).mockImplementation(async () => ({
+      response: Response.json({ id: "account-123" }), accessToken: "token-123",
+    }));
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    cookieStore.get.mockReturnValue({ value: "token-123" });
     process.env.AI_API_KEY = "test-key";
   });
 
   it("rejects an unauthenticated request", async () => {
-    cookieStore.get.mockReturnValue(undefined);
+    vi.mocked(fetchWithSession).mockResolvedValueOnce({ response: new Response(null, { status: 401 }) });
     const res = await POST(chatRequest());
     expect(res.status).toBe(401);
   });
 
-  it("errors when the AI key is not configured", async () => {
-    delete process.env.AI_API_KEY;
-    const res = await POST(chatRequest());
-    expect(res.status).toBe(500);
+  it("reports AI availability without returning provider configuration", async () => {
+    expect(await GET().json()).toEqual({ enabled: true });
+    process.env.AI_API_KEY = " ";
+    const status = GET();
+    expect(await status.json()).toEqual({ enabled: false });
+    expect(status.headers.get("Cache-Control")).toBe("no-store");
+    const response = await POST(chatRequest());
+    expect(response.status).toBe(503);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("streams assistant text back to the client", async () => {
@@ -244,18 +253,22 @@ describe("POST /api/chat", () => {
       expect(limited.headers.get("Retry-After")).toBe("60");
     });
 
-    it("budgets each session separately", async () => {
+    it("budgets each account separately", async () => {
       fetchMock.mockImplementation(async () => sseStream([textDelta("ok")]));
 
       for (let i = 0; i < 10; i++) await POST(chatRequest());
       expect((await POST(chatRequest())).status).toBe(429);
 
-      cookieStore.get.mockReturnValue({ value: "a-different-token" });
+      vi.mocked(fetchWithSession).mockResolvedValueOnce({
+        response: Response.json({ id: "another-account" }), accessToken: "another-token",
+      });
       expect((await POST(chatRequest())).status).toBe(200);
     });
 
     it("checks auth before spending budget", async () => {
-      cookieStore.get.mockReturnValue(undefined);
+      vi.mocked(fetchWithSession).mockImplementation(async () => ({
+        response: new Response(null, { status: 401 }),
+      }));
       for (let i = 0; i < 12; i++) {
         expect((await POST(chatRequest())).status).toBe(401);
       }

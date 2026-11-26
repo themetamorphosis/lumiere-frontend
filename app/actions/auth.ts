@@ -1,8 +1,14 @@
 "use server";
 
-import { authedFetch } from "@/lib/serverFetch";
-import { API_BASE } from "@/lib/auth";
-import { clearSessionCookies, setSessionCookies } from "@/lib/session";
+import { apiErrorMessage } from "@/lib/apiError";
+import { authedFetch, publicFetch, SERVER_API_BASE } from "@/lib/serverFetch";
+import {
+  ACCESS_COOKIE,
+  clearSessionCookies,
+  getAccessToken,
+  getRefreshToken,
+  setSessionCookies,
+} from "@/lib/session";
 
 export async function getSession() {
   try {
@@ -15,14 +21,21 @@ export async function getSession() {
 }
 
 export async function logout() {
-  // Revoke server-side first so the refresh-token family is invalidated, then
-  // drop the cookies. A failure here must not block local sign-out.
+  const accessToken = await getAccessToken();
+  const refreshToken = await getRefreshToken();
   try {
-    await authedFetch(`/auth/logout`, { method: "POST" });
-  } catch {
-    // ignore — cookies are cleared regardless
+    await fetch(`${SERVER_API_BASE}/auth/logout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(accessToken ? { Cookie: `${ACCESS_COOKIE}=${accessToken}` } : {}),
+      },
+      body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : null),
+      signal: AbortSignal.timeout(10_000),
+    });
+  } finally {
+    await clearSessionCookies();
   }
-  await clearSessionCookies();
 }
 
 export async function login(prevState: unknown, formData: FormData) {
@@ -38,14 +51,16 @@ export async function login(prevState: unknown, formData: FormData) {
     params.append("username", email);
     params.append("password", password);
 
-    const res = await fetch(`${API_BASE}/auth/login`, {
+    const res = await publicFetch("/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: params.toString(),
     });
 
     if (!res.ok) {
-      return { error: "Invalid email or password." };
+      if ([400, 401].includes(res.status)) return { error: "Invalid email or password." };
+      if (res.status === 429) return { error: "Too many attempts. Try again in a minute." };
+      return { error: "Sign-in is temporarily unavailable. Please try again." };
     }
 
     const data = await res.json();
@@ -55,27 +70,26 @@ export async function login(prevState: unknown, formData: FormData) {
     await setSessionCookies(data);
 
     return { success: true };
-  } catch (error) {
-    console.error("Login error:", error);
-    return {
-      error:
-        error instanceof Error
-          ? error.message
-          : "Something went wrong. Please try again.",
-    };
+  } catch {
+    return { error: "Sign-in is temporarily unavailable. Please try again." };
   }
 }
 
 export async function register(
-  prevState: unknown,
+  _prevState: unknown,
   formData: FormData,
-): Promise<{ error?: string; success?: boolean }> {
-  const name = formData.get("name") as string;
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-  const confirmPassword = formData.get("confirmPassword") as string;
+): Promise<{ error?: string; success?: boolean; accountCreated?: boolean }> {
+  const name = formData.get("name");
+  const email = formData.get("email");
+  const password = formData.get("password");
+  const confirmPassword = formData.get("confirmPassword");
 
-  if (!name || !email || !password || !confirmPassword) {
+  if (
+    typeof name !== "string" || !name.trim() ||
+    typeof email !== "string" || !email.trim() ||
+    typeof password !== "string" || !password ||
+    typeof confirmPassword !== "string" || !confirmPassword
+  ) {
     return { error: "All fields are required." };
   }
 
@@ -87,26 +101,80 @@ export async function register(
     return { error: "Passwords do not match." };
   }
 
+  let response: Response;
   try {
-    const res = await fetch(`${API_BASE}/auth/register`, {
+    response = await publicFetch("/auth/register?create_session=true", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name: name.trim(), email: email.trim(), password }),
     });
-
-    if (!res.ok) {
-      const err = await res.json();
-      return { error: err.detail || "An error occurred during registration." };
-    }
-
-    return login(prevState, formData);
-  } catch (error) {
-    console.error("Registration error:", error);
-    return {
-      error:
-        error instanceof Error
-          ? error.message
-          : "Something went wrong. Please try again.",
-    };
+  } catch {
+    return { error: "Could not confirm registration. Try signing in if you already submitted the form." };
   }
+  if (!response.ok) {
+    if (response.status === 400) {
+      return { error: "This email already has an account. Sign in or reset your password." };
+    }
+    if (response.status === 429) return { error: "Too many attempts. Try again in a minute." };
+    if (response.status === 422) {
+      return { error: await apiErrorMessage(response, "Check your registration details and try again.") };
+    }
+    return { error: "Registration is temporarily unavailable. Please try again." };
+  }
+
+  try {
+    const { session } = await response.json();
+    if (typeof session?.access_token === "string" && session.access_token &&
+        typeof session?.refresh_token === "string" && session.refresh_token) {
+      await setSessionCookies(session);
+      return { success: true };
+    }
+  } catch {
+    // The account was already created even if the session could not be saved.
+  }
+  return { accountCreated: true };
+}
+
+export async function requestPasswordReset(_state: unknown, formData: FormData) {
+  const email = formData.get("email");
+  if (typeof email !== "string" || !email.trim()) return { error: "Enter your email address." };
+  try {
+    const res = await publicFetch("/auth/password-reset/request", {
+      method: "POST",
+      body: JSON.stringify({ email: email.trim() }),
+    });
+    if (res.ok) return { success: true };
+    if (res.status === 422) return { error: "Enter a valid email address." };
+    if (res.status === 429) return { error: "Too many requests. Try again in a minute." };
+  } catch {
+    // Keep transport details on the server.
+  }
+  return { error: "Password recovery is temporarily unavailable. Please try again." };
+}
+
+export async function confirmPasswordReset(formData: FormData) {
+  const token = formData.get("token");
+  const password = formData.get("password");
+  if (typeof token !== "string" || !token) return { error: "Request a new reset link to continue." };
+  if (typeof password !== "string" || password !== formData.get("confirmPassword")) {
+    return { error: "Passwords do not match." };
+  }
+  try {
+    const res = await publicFetch("/auth/password-reset/confirm", {
+      method: "POST",
+      body: JSON.stringify({ token, password }),
+    });
+    if (res.ok) {
+      await clearSessionCookies();
+      return { success: true };
+    }
+    if (res.status === 400) return { error: "This reset link is invalid or expired. Request a new link." };
+    if (res.status === 422) {
+      const { detail } = await res.json();
+      return { error: typeof detail === "string" ? detail : "Choose a valid password." };
+    }
+    if (res.status === 429) return { error: "Too many attempts. Try again in a minute." };
+  } catch {
+    // Keep transport details on the server.
+  }
+  return { error: "Password recovery is temporarily unavailable. Please try again." };
 }

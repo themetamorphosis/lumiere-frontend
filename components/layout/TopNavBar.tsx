@@ -87,6 +87,7 @@ export default function TopNavBar() {
     setTimeout(() => setMounted(true), 0);
   }, []);
   const profileRef = useRef<HTMLDivElement>(null);
+  const mobileToggleRef = useRef<HTMLButtonElement>(null);
   const themeRef = useRef<HTMLDivElement>(null);
   const toastShownRef = useRef<Set<string>>(new Set());
 
@@ -106,6 +107,24 @@ export default function TopNavBar() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  useEffect(() => {
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      if (mobileNavOpen) {
+        setMobileNavOpen(false);
+        mobileToggleRef.current?.focus();
+      } else if (profileOpen) {
+        setProfileOpen(false);
+        profileRef.current?.querySelector("button")?.focus();
+      } else if (themeOpen) {
+        setThemeOpen(false);
+        themeRef.current?.querySelector("button")?.focus();
+      }
+    }
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [mobileNavOpen, profileOpen, themeOpen]);
 
   /* Toast auto-dismiss */
   useEffect(() => {
@@ -146,6 +165,7 @@ export default function TopNavBar() {
   return (
     <>
       <header
+        data-app-navigation
         suppressHydrationWarning
         className={
           isRetro
@@ -155,50 +175,25 @@ export default function TopNavBar() {
       >
         <div
           suppressHydrationWarning
-          className="mx-auto max-w-[1800px] px-4 sm:px-6 lg:px-10 h-20 flex items-center justify-between gap-4"
+          className="mx-auto max-w-[1800px] px-4 sm:px-6 xl:px-8 h-20 flex items-center justify-between gap-4"
         >
           {/* ── Left: Logo ── */}
-          {isRetro ? (
-            <Link
-              href="/"
-              className="flex items-center gap-1 mr-4 flex-shrink-0"
-            >
-              <span className="text-[#f0a500] dark:text-tui-amber font-bold text-sm md:text-base">
-                guest@lumiere
-              </span>
-              <span className="text-nav-text opacity-60 text-sm md:text-base">
-                :
-              </span>
-              <span className="text-blue-400 font-bold text-sm md:text-base">
-                ~
-              </span>
-              <span className="text-nav-text font-bold text-sm md:text-base">
-                $
-              </span>
-            </Link>
-          ) : (
-            <Link
-              href="/"
-              className="flex items-center gap-1.5 mr-4 flex-shrink-0 select-none"
-            >
-              <span className="text-[17px] font-bold tracking-tight text-tui-text">
-                Lumière
-              </span>
-              <span className="text-[15px] font-normal tracking-tight text-tui-text-muted">
-                Personal
-              </span>
-            </Link>
-          )}
+          <Link href="/" className="shrink-0 font-mono text-base font-bold tracking-wide text-[#f0a500]">
+            Lumière
+          </Link>
 
           {/* ── Mobile hamburger button ── */}
           <button
             className={
               isRetro
-                ? "md:hidden ml-auto flex items-center justify-center h-10 px-3 border border-nav-border text-nav-text bg-nav-bg hover:text-nav-hover-text hover:border-nav-hover-text transition-all flex-shrink-0 text-xs font-bold cursor-pointer"
-                : "md:hidden ml-auto flex items-center justify-center h-10 w-10 rounded-full border border-tui-border bg-tui-panel text-tui-text hover:bg-tui-input hover:text-tui-text transition-all flex-shrink-0 cursor-pointer"
+                ? "xl:hidden ml-auto flex items-center justify-center h-10 px-3 border border-nav-border text-nav-text bg-nav-bg hover:text-nav-hover-text hover:border-nav-hover-text transition-all flex-shrink-0 text-xs font-bold cursor-pointer"
+                : "xl:hidden ml-auto flex items-center justify-center h-10 w-10 rounded-full border border-tui-border bg-tui-panel text-tui-text hover:bg-tui-input hover:text-tui-text transition-all flex-shrink-0 cursor-pointer"
             }
+            ref={mobileToggleRef}
             onClick={() => setMobileNavOpen(!mobileNavOpen)}
-            aria-label="Toggle navigation"
+            aria-label="Navigation menu"
+            aria-expanded={mobileNavOpen}
+            aria-controls={mobileNavOpen ? "mobile-navigation" : undefined}
           >
             {isRetro ? (
               mobileNavOpen ? (
@@ -216,7 +211,7 @@ export default function TopNavBar() {
           {/* ── Center: Nav Tabs (hidden on mobile) ── */}
           <nav
             aria-label="Main navigation"
-            className="hidden md:flex flex-1 items-center justify-center px-2"
+            className="hidden xl:flex flex-1 items-center justify-center px-2"
           >
             <div
               className={
@@ -230,7 +225,7 @@ export default function TopNavBar() {
                 return (
                   <React.Fragment key={tab.href}>
                     {isRetro && idx > 0 && (
-                      <span className="text-nav-border px-1.5 select-none">
+                      <span aria-hidden="true" className="text-nav-border px-1.5 select-none">
                         |
                       </span>
                     )}
@@ -243,6 +238,7 @@ export default function TopNavBar() {
                               ? "/wishlist/movies"
                               : tab.href
                         }
+                        aria-current={isActive && !tab.subTabs ? "page" : undefined}
                         onClick={(e) => {
                           if (tab.comingSoon) {
                             e.preventDefault();
@@ -251,12 +247,12 @@ export default function TopNavBar() {
                         }}
                         className={
                           isRetro
-                            ? `px-5 py-2.5 transition-all duration-150 block uppercase tracking-wider text-xs md:text-sm ${
+                            ? `px-3 py-2.5 transition-all duration-150 block uppercase tracking-wider text-xs ${
                                 isActive
                                   ? "bg-nav-active-bg text-nav-active-text font-bold"
                                   : "text-nav-text hover:text-nav-hover-text hover:bg-nav-hover-bg"
                               }`
-                            : `px-4 py-2 transition-all duration-200 block text-xs md:text-sm font-medium rounded-full ${
+                            : `px-4 py-2 transition-all duration-200 block text-xs font-medium rounded-full ${
                                 isActive
                                   ? "bg-tui-panel border border-tui-border/40 text-tui-text font-semibold shadow-sm animate-none"
                                   : "text-tui-text-muted hover:text-tui-text hover:bg-tui-input"
@@ -273,7 +269,7 @@ export default function TopNavBar() {
 
                       {/* Dropdown Menu */}
                       {tab.subTabs && (
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all duration-200 z-50">
                           <div
                             className={
                               isRetro
@@ -287,6 +283,7 @@ export default function TopNavBar() {
                                 <Link
                                   key={sub.href}
                                   href={sub.href}
+                                  aria-current={isSubActive ? "page" : undefined}
                                   className={
                                     isRetro
                                       ? `flex items-center gap-2 px-3 py-2 transition-colors uppercase ${
@@ -294,7 +291,7 @@ export default function TopNavBar() {
                                             ? "bg-nav-hover-bg text-nav-active-bg border-l-2 border-nav-active-bg font-bold"
                                             : "text-nav-text hover:text-nav-hover-text hover:bg-nav-hover-bg"
                                         }`
-                                      : `flex items-center gap-2 px-3.5 py-2 transition-colors rounded-xl text-xs md:text-sm font-medium ${
+                                      : `flex items-center gap-2 px-3.5 py-2 transition-colors rounded-xl text-xs font-medium ${
                                           isSubActive
                                             ? "bg-tui-input text-tui-amber font-semibold"
                                             : "text-tui-text-muted hover:text-tui-text hover:bg-tui-input/50"
@@ -316,7 +313,7 @@ export default function TopNavBar() {
           </nav>
 
           {/* ── Right: Profile & Theme dropdowns (hidden on mobile — see drawer) ── */}
-          <div className="hidden md:flex items-center gap-2 flex-shrink-0">
+          <div className="hidden xl:flex items-center gap-2 flex-shrink-0">
             {/* CRT scanlines toggle — lives beside the theme selector because
                 it is part of the same choice about how the app looks, and it
                 applies to every page rather than just the library. */}
@@ -327,12 +324,12 @@ export default function TopNavBar() {
                 title="Toggle CRT scanlines"
                 className={
                   isRetro
-                    ? `flex items-center justify-center h-10 px-3.5 border transition-all uppercase text-xs md:text-sm cursor-pointer ${
+                    ? `flex items-center justify-center h-10 px-3.5 border transition-all uppercase text-xs cursor-pointer ${
                         mounted && !scanlines
                           ? "border-nav-border bg-nav-bg text-nav-text hover:border-nav-active-bg hover:text-nav-hover-text"
                           : "border-nav-active-bg bg-nav-bg text-nav-active-bg"
                       }`
-                    : "flex items-center justify-center h-10 px-4 rounded-full border border-tui-border bg-tui-panel text-tui-text hover:bg-tui-input transition-all text-xs md:text-sm cursor-pointer"
+                    : "flex items-center justify-center h-10 px-4 rounded-full border border-tui-border bg-tui-panel text-tui-text hover:bg-tui-input transition-all text-xs cursor-pointer"
                 }
               >
                 [ CRT: {mounted && !scanlines ? "OFF" : "ON"} ]
@@ -344,14 +341,16 @@ export default function TopNavBar() {
               {isRetro ? (
                 <button
                   onClick={() => setThemeOpen(!themeOpen)}
-                  className="flex items-center justify-center h-10 px-3.5 border border-nav-border bg-nav-bg text-nav-text hover:border-nav-active-bg hover:text-nav-hover-text transition-all uppercase text-xs md:text-sm cursor-pointer"
+                  aria-expanded={themeOpen}
+                  className="flex items-center justify-center h-10 px-3.5 border border-nav-border bg-nav-bg text-nav-text hover:border-nav-active-bg hover:text-nav-hover-text transition-all uppercase text-xs cursor-pointer"
                 >
                   [ THEME: {currentThemeInfo.label.toUpperCase()} ]
                 </button>
               ) : (
                 <button
                   onClick={() => setThemeOpen(!themeOpen)}
-                  className="flex items-center gap-2 h-10 px-4 rounded-full border border-tui-border bg-tui-panel text-tui-text hover:bg-tui-input hover:text-tui-text transition-all text-xs md:text-sm cursor-pointer animate-none"
+                  aria-expanded={themeOpen}
+                  className="flex items-center gap-2 h-10 px-4 rounded-full border border-tui-border bg-tui-panel text-tui-text hover:bg-tui-input hover:text-tui-text transition-all text-xs cursor-pointer animate-none"
                 >
                   <currentThemeInfo.icon className="h-4 w-4 text-tui-amber" />
                   <span className="font-medium">{currentThemeInfo.label}</span>
@@ -435,10 +434,11 @@ export default function TopNavBar() {
                   onClick={() => setProfileOpen(!profileOpen)}
                   className={
                     isRetro
-                      ? "flex items-center gap-2 px-4 py-2 border border-nav-border bg-nav-bg text-nav-text hover:border-nav-active-bg hover:text-nav-hover-text transition-all uppercase text-xs md:text-sm cursor-pointer"
-                      : "flex items-center gap-2 px-4 py-2 rounded-full border border-tui-border bg-tui-panel text-tui-text hover:bg-tui-input hover:text-tui-text transition-all text-xs md:text-sm cursor-pointer"
+                      ? "flex items-center gap-2 px-4 py-2 border border-nav-border bg-nav-bg text-nav-text hover:border-nav-active-bg hover:text-nav-hover-text transition-all uppercase text-xs cursor-pointer"
+                      : "flex items-center gap-2 px-4 py-2 rounded-full border border-tui-border bg-tui-panel text-tui-text hover:bg-tui-input hover:text-tui-text transition-all text-xs cursor-pointer"
                   }
                   aria-label="Profile menu"
+                  aria-expanded={profileOpen}
                 >
                   {!isRetro &&
                     (session.user?.image ? (
@@ -455,7 +455,7 @@ export default function TopNavBar() {
                         {session.user?.name?.[0]?.toUpperCase() || "U"}
                       </span>
                     ))}
-                  <span>{session.user?.name || "GUEST"}</span>
+                  <span className="max-w-32 truncate">{session.user?.name || "Account"}</span>
                   <ChevronDown className="h-3.5 w-3.5 opacity-60" />
                 </button>
 
@@ -494,7 +494,7 @@ export default function TopNavBar() {
                             <div className="text-[10px] text-nav-text opacity-80 font-mono">
                               EMAIL
                             </div>
-                            <div className="text-nav-text-muted truncate text-[11px] font-mono">
+                            <div className="text-nav-text truncate text-[11px] font-mono">
                               {session.user?.email}
                             </div>
                           </div>
@@ -506,7 +506,7 @@ export default function TopNavBar() {
                             <User className="h-3.5 w-3.5" />[ PROFILE ]
                           </Link>
                           <button
-                            className="flex items-center gap-2 w-full px-3 py-2 text-tui-red/80 hover:text-tui-red hover:bg-nav-hover-bg transition-colors text-left font-mono cursor-pointer"
+                            className="flex items-center gap-2 w-full px-3 py-2 text-[#ff8585] hover:text-white hover:bg-nav-hover-bg transition-colors text-left font-mono cursor-pointer"
                             onClick={() => {
                               setProfileOpen(false);
                               signOut();
@@ -557,15 +557,18 @@ export default function TopNavBar() {
       {/* Mobile nav drawer */}
       <AnimatePresence>
         {mobileNavOpen && (
-          <motion.div
+          <motion.nav
+            data-app-navigation
+            id="mobile-navigation"
+            aria-label="Main navigation"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2, ease: "easeInOut" }}
             className={
               isRetro
-                ? "md:hidden fixed top-20 left-0 right-0 z-40 overflow-hidden font-mono text-xs uppercase"
-                : "md:hidden fixed top-20 left-0 right-0 z-40 overflow-hidden font-sans text-sm"
+                ? "xl:hidden fixed top-20 left-0 right-0 z-40 overflow-hidden font-mono text-xs uppercase"
+                : "xl:hidden fixed top-20 left-0 right-0 z-40 overflow-hidden font-sans text-sm"
             }
           >
             <div
@@ -595,6 +598,7 @@ export default function TopNavBar() {
                               ? "/wishlist/movies"
                               : tab.href
                         }
+                        aria-current={isActive && !tab.subTabs ? "page" : undefined}
                         onClick={(e) => {
                           if (tab.comingSoon) {
                             e.preventDefault();
@@ -621,7 +625,7 @@ export default function TopNavBar() {
                           <span
                             className={
                               isRetro
-                                ? "ml-auto text-[9px] text-nav-text-muted"
+                                ? "ml-auto text-[9px] text-nav-text"
                                 : "ml-auto text-[9px] text-tui-text-muted"
                             }
                           >
@@ -630,21 +634,21 @@ export default function TopNavBar() {
                         )}
                       </Link>
 
-                      {/* Sub-tabs — the desktop dropdown is hover-only, so mobile
-                          reaches TV/Anime through these inline links instead. */}
+                      {/* Keep category links visible in the mobile drawer. */}
                       {tab.subTabs?.map((sub) => {
                         const isSubActive = pathname === sub.href;
                         return (
                           <Link
                             key={sub.href}
                             href={sub.href}
+                            aria-current={isSubActive ? "page" : undefined}
                             onClick={() => setMobileNavOpen(false)}
                             className={
                               isRetro
                                 ? `flex items-center gap-3 pl-8 pr-4 py-2.5 border-l border-nav-border ml-4 transition-colors ${
                                     isSubActive
                                       ? "text-nav-active-bg font-bold"
-                                      : "text-nav-text-muted hover:text-nav-hover-text hover:bg-nav-hover-bg"
+                                      : "text-nav-text hover:text-nav-hover-text hover:bg-nav-hover-bg"
                                   }`
                                 : `flex items-center gap-3 pl-8 pr-4 py-2.5 rounded-xl ml-4 transition-colors ${
                                     isSubActive
@@ -732,7 +736,7 @@ export default function TopNavBar() {
                         }}
                         className={
                           isRetro
-                            ? "flex items-center gap-3 px-4 py-3 text-left text-tui-red/80 hover:text-tui-red hover:bg-nav-hover-bg transition-colors cursor-pointer"
+                            ? "flex items-center gap-3 px-4 py-3 text-left text-[#ff8585] hover:text-white hover:bg-nav-hover-bg transition-colors cursor-pointer"
                             : "flex items-center gap-3 px-4 py-3 rounded-xl text-left text-tui-red hover:bg-tui-red/10 transition-colors cursor-pointer"
                         }
                       >
@@ -744,7 +748,7 @@ export default function TopNavBar() {
                 </div>
               </div>
             </div>
-          </motion.div>
+          </motion.nav>
         )}
       </AnimatePresence>
 

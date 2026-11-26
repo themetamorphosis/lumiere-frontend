@@ -63,7 +63,7 @@ export default function HandleBanner() {
                 placeholder="yourname"
                 aria-label="Choose a handle"
                 autoComplete="off"
-                className="w-full bg-transparent py-2 pl-0.5 pr-3 text-sm text-tui-text placeholder:text-tui-text-muted/40 focus:outline-none"
+                className="w-full bg-transparent py-2 pl-0.5 pr-3 text-sm text-tui-text placeholder:text-tui-text-muted focus:outline-none"
               />
             </div>
             <button

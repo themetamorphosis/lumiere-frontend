@@ -1,3 +1,4 @@
+import { setTimeout } from "node:timers";
 import { API_BASE } from "@/lib/auth";
 import {
   ACCESS_COOKIE,
@@ -8,6 +9,7 @@ import {
 
 /** Without this a hung backend holds a server render open until the platform kills it. */
 const DEFAULT_TIMEOUT_MS = 10_000;
+export const SERVER_API_BASE = process.env.API_URL || API_BASE;
 
 /** Endpoints where a 401 is a real answer, not an expired-token signal. */
 function isAuthEndpoint(endpoint: string): boolean {
@@ -18,63 +20,54 @@ function isAuthEndpoint(endpoint: string): boolean {
   );
 }
 
-/**
- * Exchange the refresh token for a new token pair and persist both.
- *
- * The backend rotates refresh tokens and invalidates the old family on reuse,
- * so the new pair *must* be stored. Callers are Server Actions, where cookies
- * are writable; if a write ever fails we return null rather than leaving the
- * caller holding a token we couldn't persist.
- */
-/**
- * In-flight refresh, shared by concurrent callers.
- *
- * The backend rotates the refresh-token family on every use and treats a stale
- * family as a replay attack, revoking everything. Two server actions that 401
- * at the same moment — routine, since a page fires several in parallel — would
- * both POST the same token: the first rotates, the second trips reuse detection
- * and logs the user out. Coalescing collapses that to one exchange.
- *
- * Per server instance, so this narrows the window rather than closing it;
- * closing it needs shared state, which arrives with Redis in Phase 4.
- */
-let inFlightRefresh: Promise<string | null> | null = null;
+type TokenPair = { access_token: string; refresh_token: string };
+type RefreshResult = { tokens: TokenPair } | { unavailable: boolean };
+type RefreshExchange = {
+  pending: Promise<RefreshResult>;
+  completedAt?: number;
+};
 
-function refreshSession(): Promise<string | null> {
-  if (!inFlightRefresh) {
-    inFlightRefresh = performRefresh().finally(() => {
-      inFlightRefresh = null;
-    });
+// Next can load route handlers and server actions in separate bundles within
+// the same process. Each exchange is isolated by the original credential.
+const runtime = globalThis as typeof globalThis & {
+  lumiereRefreshExchanges?: Map<string, RefreshExchange>;
+};
+const refreshExchanges = (runtime.lumiereRefreshExchanges ??= new Map());
+
+function refreshSession(refreshToken: string, requestStarted: number): Promise<RefreshResult> {
+  const current = refreshExchanges.get(refreshToken);
+  if (current && (current.completedAt === undefined || requestStarted <= current.completedAt)) {
+    return current.pending;
   }
-  return inFlightRefresh;
+  const exchange: RefreshExchange = { pending: performRefresh(refreshToken) };
+  refreshExchanges.set(refreshToken, exchange);
+  void exchange.pending.then(() => {
+    exchange.completedAt = performance.now();
+    // A request already underway may receive its 401 after the rotation.
+    // Requests started after it complete a new exchange instead.
+    setTimeout(() => {
+      if (refreshExchanges.get(refreshToken) === exchange) refreshExchanges.delete(refreshToken);
+    }, DEFAULT_TIMEOUT_MS).unref();
+  });
+  return exchange.pending;
 }
 
-/** Test seam: module state would otherwise leak between cases. */
-export function __resetRefreshState() {
-  inFlightRefresh = null;
-}
-
-async function performRefresh(): Promise<string | null> {
-  const refreshToken = await getRefreshToken();
-  if (!refreshToken) return null;
-
+async function performRefresh(refreshToken: string): Promise<RefreshResult> {
   try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
+    const res = await fetch(`${SERVER_API_BASE}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh_token: refreshToken }),
       signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
     });
-
-    if (!res.ok) return null;
-
-    const data = await res.json();
-    if (!data?.access_token) return null;
-
-    await setSessionCookies(data);
-    return data.access_token as string;
+    if (!res.ok) return { unavailable: res.status !== 401 };
+    const tokens = await res.json();
+    if (typeof tokens?.access_token !== "string" || typeof tokens?.refresh_token !== "string") {
+      return { unavailable: true };
+    }
+    return { tokens };
   } catch {
-    return null;
+    return { unavailable: true };
   }
 }
 
@@ -108,7 +101,7 @@ export async function publicFetch(
   endpoint: string,
   options: RequestInit = {},
 ): Promise<Response> {
-  const url = endpoint.startsWith("http") ? endpoint : `${API_BASE}${endpoint}`;
+  const url = endpoint.startsWith("http") ? endpoint : `${SERVER_API_BASE}${endpoint}`;
   return fetch(url, {
     signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
     ...options,
@@ -120,7 +113,16 @@ export async function authedFetch(
   endpoint: string,
   options: RequestInit = {},
 ): Promise<Response> {
-  const url = endpoint.startsWith("http") ? endpoint : `${API_BASE}${endpoint}`;
+  const { response } = await fetchWithSession(endpoint, options);
+  return response;
+}
+
+export async function fetchWithSession(
+  endpoint: string,
+  options: RequestInit = {},
+): Promise<{ response: Response; accessToken?: string }> {
+  const requestStarted = performance.now();
+  const url = endpoint.startsWith("http") ? endpoint : `${SERVER_API_BASE}${endpoint}`;
   const token = await getAccessToken();
 
   const send = (t?: string) =>
@@ -131,18 +133,27 @@ export async function authedFetch(
     });
 
   const res = await send(token);
+  const body = options.body;
+  const streaming = body && typeof body === "object" && "getReader" in body;
 
-  // A 401 on a normal endpoint means the access token expired. Refresh once
-  // and replay. FormData bodies are single-use streams, so they can't be
-  // safely replayed and are left alone.
+  // Rebuild the request after a 401. A raw stream can't be read twice.
   if (
     res.status === 401 &&
     !isAuthEndpoint(endpoint) &&
-    !(options.body instanceof FormData)
+    !streaming
   ) {
-    const renewed = await refreshSession();
-    if (renewed) return send(renewed);
+    const refreshToken = await getRefreshToken();
+    if (!refreshToken) return { response: res };
+    const result = await refreshSession(refreshToken, requestStarted);
+    if ("tokens" in result) {
+      await setSessionCookies(result.tokens);
+      const accessToken = result.tokens.access_token;
+      return { response: await send(accessToken), accessToken };
+    }
+    if (result.unavailable) {
+      return { response: Response.json({ detail: "Session service temporarily unavailable" }, { status: 503 }) };
+    }
   }
 
-  return res;
+  return { response: res, accessToken: token };
 }

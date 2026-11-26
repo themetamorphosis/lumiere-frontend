@@ -1,345 +1,149 @@
 "use client";
 
-import React, { useMemo, useState, useRef } from "react";
-import type { Item, MediaType, Status } from "@/lib/types";
+import { useMemo, useRef, useState } from "react";
 import { useModalA11y } from "@/hooks/useModalA11y";
+import { parseLibraryImport, type LibraryImportEntry, type LibraryImportFormat } from "@/lib/libraryImport";
+import type { ImportOutcome, ImportResult, MediaType, Status } from "@/lib/types";
 
-type Parsed = {
-  title: string;
-  year?: number;
-  endYear?: number;
-  running?: boolean;
+const statusLabel = { watched: "Watched", pending: "Watching", wishlist: "Wishlist" };
+const resultLabel = {
+  imported: "Imported",
+  duplicate: "Already present",
+  unconfirmed: "Could not confirm",
 };
-
-function cleanLine(raw: string) {
-  let line = (raw || "").trim();
-  line = line.replace(/^\s*[-*•]+\s*/, "");
-  line = line.replace(/^\s*\d+\.\s*/, "");
-  return line.trim();
-}
-
-function parseTitleAndYears(raw: string, mediaType: MediaType): Parsed {
-  let line = cleanLine(raw);
-  line = line.split(" – ")[0].split(" - ")[0].trim();
-
-  const paren = line.match(/\(([^)]+)\)\s*$/);
-  const inside = paren?.[1]?.trim();
-  const title = line.replace(/\s*\([^)]+\)\s*$/, "").trim();
-
-  if (!inside) return { title };
-
-  const norm = inside.replace(/[—–]/g, "-").replace(/\s+/g, " ").trim();
-
-  const isRunningWord = /running|ongoing|still running|present/i.test(norm);
-
-  if (mediaType === "movie") {
-    const y = norm.match(/\b(\d{4})\b/);
-    return { title, year: y ? Number(y[1]) : undefined };
-  }
-
-  const range = norm.match(/\b(\d{4})\s*-\s*(\d{4})\b/);
-  if (range) {
-    return {
-      title,
-      year: Number(range[1]),
-      endYear: Number(range[2]),
-      running: false,
-    };
-  }
-
-  const startRunning = norm.match(
-    /\b(\d{4})\s*-\s*(running|ongoing|present)\b/i,
-  );
-  if (startRunning) {
-    return {
-      title,
-      year: Number(startRunning[1]),
-      endYear: undefined,
-      running: true,
-    };
-  }
-
-  if (isRunningWord && !norm.match(/\d{4}/)) {
-    return { title, running: true };
-  }
-
-  const single = norm.match(/\b(\d{4})\b/);
-  if (single) {
-    return {
-      title,
-      year: Number(single[1]),
-      running: isRunningWord || undefined,
-    };
-  }
-
-  return { title };
-}
-
-function defaultStatusForImport(): Status {
-  return "watched";
-}
 
 export default function ImportModal({
   defaultMediaType = "movie",
+  defaultStatus = "watched",
   onClose,
   onImport,
 }: {
   defaultMediaType?: MediaType;
+  defaultStatus?: Status;
   onClose: () => void;
-  onImport: (items: Item[]) => void;
+  onImport: (items: LibraryImportEntry[]) => Promise<ImportResult>;
 }) {
-  const [tab] = useState<MediaType>(defaultMediaType);
-  const [text, setText] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  useModalA11y(onClose);
+  const [source, setSource] = useState("");
+  const [format, setFormat] = useState<LibraryImportFormat>();
+  const [busy, setBusy] = useState(false);
+  const [results, setResults] = useState<ImportResult>();
+  const [showAll, setShowAll] = useState(false);
+  const [fileError, setFileError] = useState("");
+  const fileInput = useRef<HTMLInputElement>(null);
+  const { containerRef, trapFocus } = useModalA11y(() => { if (!busy) onClose(); });
+  const rows = useMemo(
+    () => parseLibraryImport(source, defaultMediaType, defaultStatus, format),
+    [source, defaultMediaType, defaultStatus, format],
+  );
+  const validRows = rows.filter((row) => "entry" in row);
+  const invalidCount = rows.length - validRows.length;
+  const outcomes = new Map(validRows.map((row, index) => [row.row, results?.results[index]]));
+  const visible = showAll ? rows : rows.slice(0, 6);
 
-  const parsedPreview = useMemo(() => {
-    if (!text.trim()) return [];
+  function updateSource(value: string, fileFormat?: LibraryImportFormat) {
+    setSource(value);
+    setFormat(fileFormat);
+    setResults(undefined);
+    setShowAll(false);
+    setFileError("");
+  }
 
-    // 1. Try JSON
+  async function runImport() {
+    setBusy(true);
     try {
-      const data = JSON.parse(text);
-      if (Array.isArray(data)) {
-        return data
-          .map((item: Record<string, unknown>) => {
-            if (typeof item === "string")
-              return parseTitleAndYears(item as string, tab);
-            return {
-              title: (item.title as string) || (item.name as string) || "",
-              year: item.year ? Number(item.year) : undefined,
-              endYear: item.endYear ? Number(item.endYear) : undefined,
-              running:
-                !!item.running ||
-                item.status === "running" ||
-                item.status === "ongoing",
-            };
-          })
-          .filter((x) => x.title);
-      }
+      const pending = validRows.flatMap((row, index) =>
+        !results || results.results[index] === "unconfirmed" ? [{ index, entry: row.entry }] : [],
+      );
+      const response = await onImport(pending.map((row) => row.entry));
+      const outcomes: ImportOutcome[] = results ? [...results.results] : validRows.map(() => "unconfirmed");
+      pending.forEach(({ index }, position) => { outcomes[index] = response.results[position] ?? "unconfirmed"; });
+      setResults({
+        imported: outcomes.filter((value) => value === "imported").length,
+        skipped: outcomes.filter((value) => value === "duplicate").length,
+        failed: outcomes.filter((value) => value === "unconfirmed").length,
+        results: outcomes,
+      });
     } catch {
-      // Ignore: Not JSON array
-    }
-
-    const lines = text
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean);
-
-    // 2. Try CSV with header (comma separated)
-    if (lines.length > 0) {
-      const header = lines[0].toLowerCase();
-      if (
-        header.includes(",") &&
-        (header.includes("title") || header.includes("name"))
-      ) {
-        const columns = header
-          .split(",")
-          .map((c) => c.trim().replace(/^["']|["']$/g, ""));
-        const titleIdx = columns.findIndex(
-          (c) => c === "title" || c === "name",
-        );
-        const yearIdx = columns.findIndex(
-          (c) => c === "year" || c === "release year",
-        );
-        const statusIdx = columns.findIndex((c) => c === "status");
-
-        const out = [];
-        for (let i = 1; i < lines.length; i++) {
-          const parts = lines[i]
-            .split(",")
-            .map((p) => p.trim().replace(/^["']|["']$/g, ""));
-          const title = titleIdx >= 0 ? parts[titleIdx] : parts[0];
-          const year = yearIdx >= 0 ? parseInt(parts[yearIdx], 10) : undefined;
-          let running = false;
-          if (statusIdx >= 0 && parts[statusIdx]) {
-            const stat = parts[statusIdx].toLowerCase();
-            running = stat.includes("running") || stat.includes("ongoing");
-          }
-          if (title)
-            out.push({ title, year: isNaN(year!) ? undefined : year, running });
-        }
-        return out;
+      if (!results) {
+        setResults({
+          imported: 0,
+          skipped: 0,
+          failed: validRows.length,
+          results: validRows.map(() => "unconfirmed"),
+        });
       }
+    } finally {
+      setBusy(false);
     }
-
-    // 3. Fallback: Plain text parsing line-by-line
-    return lines.map((l) => parseTitleAndYears(l, tab));
-  }, [text, tab]);
-
-  function buildItems(): Item[] {
-    const now = Date.now();
-    return parsedPreview.slice(0, 1000).map((p) => ({
-      id: crypto.randomUUID?.() ?? Math.random().toString(16).slice(2),
-      title: p.title,
-      year: p.year,
-      endYear: p.endYear,
-      running: p.running,
-      mediaType: tab,
-      status: defaultStatusForImport(),
-      favorite: false,
-      createdAt: now,
-      updatedAt: now,
-    }));
   }
-
-  function formatYears(p: Parsed) {
-    if (tab === "movie") return p.year ? String(p.year) : "—";
-    if (p.year && p.endYear) return `${p.year}–${p.endYear}`;
-    if (p.year && p.running) return `${p.year}–Running`;
-    if (p.running) return "Running";
-    return p.year ? String(p.year) : "—";
-  }
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result;
-      if (typeof content === "string") {
-        setText(content);
-      }
-    };
-    reader.readAsText(file);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const previewSliced = parsedPreview.slice(0, 6);
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 p-4 font-mono text-xs">
-      <div className="w-full max-w-xl bg-tui-panel border border-tui-border shadow-2xl flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-tui-border-muted p-4 bg-tui-bg/30 shrink-0">
+    <div ref={containerRef} tabIndex={-1} onKeyDown={trapFocus} role="dialog" aria-modal="true" aria-labelledby="library-import-title"
+      className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 p-4 text-tui-text">
+      <div className="flex max-h-[90dvh] w-full max-w-2xl flex-col border border-tui-border bg-tui-panel shadow-2xl">
+        <div className="flex items-center justify-between gap-3 border-b border-tui-border p-4">
+          <h2 id="library-import-title" className="font-mono text-lg font-bold">Import titles</h2>
+          <button type="button" onClick={onClose} disabled={busy} aria-label="Close import" className="border border-tui-border px-3 py-2">✕</button>
+        </div>
+        <div className="space-y-4 overflow-y-auto p-4">
           <div>
-            <div className="text-[9px] font-semibold tracking-wider text-tui-text-muted uppercase mb-0.5">
-              {/* COLLECTION_IMPORT */}
-            </div>
-            <div className="text-sm font-bold tracking-tight text-tui-text uppercase">
-              PASTE OR UPLOAD LIST
-            </div>
+            <p className="mb-2 text-sm">Use one title per line, CSV with headers, or a JSON array. Include a release year to distinguish editions.</p>
+            <button type="button" disabled={busy} onClick={() => fileInput.current?.click()} className="border border-tui-border px-3 py-2">
+              Upload TXT, CSV, or JSON
+            </button>
+            <input ref={fileInput} type="file" accept=".txt,.csv,.json" className="hidden" onChange={async (event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (!file) return;
+              const extension = file.name.split(".").at(-1)?.toLowerCase();
+              const fileFormat = extension === "csv" || extension === "json" || extension === "txt" ? extension : undefined;
+              try { updateSource(await file.text(), fileFormat); } catch { setFileError("Could not read that file."); }
+            }} />
           </div>
-
-          <button
-            onClick={onClose}
-            className="px-2.5 py-1 border border-tui-border text-tui-text-muted hover:border-tui-text hover:text-tui-text uppercase transition-all"
-            title="Close modal"
-          >
-            [X]
+          {fileError && <p role="alert">{fileError}</p>}
+          <label className="block">
+            <span className="mb-1 block text-sm font-semibold">Paste titles</span>
+            <textarea value={source} disabled={busy} onChange={(event) => updateSource(event.target.value)}
+              placeholder={'Title,Year,Status,Favorite\n"Paris, Texas",1984,watched,true'}
+              className="min-h-32 w-full border border-tui-border bg-tui-input p-3 text-sm focus:border-tui-amber" />
+          </label>
+          {rows.length > 0 && (
+            <section aria-label={results ? "Import report" : "Import preview"} className="space-y-2">
+              <p role="status" className="text-sm font-bold">
+                {results
+                  ? `${results.imported} imported · ${results.skipped} already present · ${results.failed} unconfirmed · ${invalidCount} invalid`
+                  : `${validRows.length} ready to import · ${invalidCount} invalid`}
+              </p>
+              {results?.failed ? <p className="text-sm">You can retry safely. Titles already saved will be skipped.</p> : null}
+              <ol className="max-h-64 space-y-1 overflow-y-auto">
+                {visible.map((row) => {
+                  const outcome = outcomes.get(row.row);
+                  return (
+                    <li key={row.row} className="border border-tui-border p-2 text-sm">
+                      <span className="font-semibold">{row.row}. {row.title || "Untitled"}</span>
+                      {"entry" in row ? (
+                        <span> · {[row.entry.year, row.entry.mediaType, statusLabel[row.entry.status], row.entry.favorite ? "Favorite" : null].filter(Boolean).join(" · ")}
+                          {outcome && <strong> · {resultLabel[outcome]}</strong>}
+                        </span>
+                      ) : <span> · Skipped: {row.error}</span>}
+                    </li>
+                  );
+                })}
+              </ol>
+              {rows.length > 6 && (
+                <button type="button" onClick={() => setShowAll(!showAll)} className="text-sm underline">
+                  {showAll ? "Show fewer rows" : `Show all ${rows.length} rows`}
+                </button>
+              )}
+            </section>
+          )}
+        </div>
+        <div className="flex flex-wrap justify-end gap-2 border-t border-tui-border p-4">
+          <button type="button" onClick={onClose} disabled={busy} className="border border-tui-border px-3 py-2">Done</button>
+          <button type="button" onClick={runImport} disabled={busy || !validRows.length || Boolean(results && !results.failed)}
+            className="bg-tui-text px-3 py-2 font-bold text-tui-bg disabled:opacity-50">
+            {busy ? "Importing…" : results?.failed ? "Retry import" : `Import ${validRows.length || ""} titles`}
           </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-5 flex-1 overflow-y-auto space-y-4">
-          {/* File Upload buttons */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 border border-tui-border text-tui-text-muted bg-tui-bg hover:text-tui-text hover:border-tui-text hover:bg-tui-input/50 transition-all uppercase"
-            >
-              [ UPLOAD .TXT ]
-            </button>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 border border-tui-border text-tui-text-muted bg-tui-bg hover:text-tui-text hover:border-tui-text hover:bg-tui-input/50 transition-all uppercase"
-            >
-              [ UPLOAD .CSV ]
-            </button>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 border border-tui-border text-tui-text-muted bg-tui-bg hover:text-tui-text hover:border-tui-text hover:bg-tui-input/50 transition-all uppercase"
-            >
-              [ UPLOAD .JSON ]
-            </button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept=".txt,.csv,.json"
-              onChange={handleFileUpload}
-            />
-          </div>
-
-          {/* Textarea for bulk paste */}
-          <div className="space-y-1">
-            <label className="text-[10px] text-tui-text-muted uppercase font-bold tracking-wider select-none">
-              PASTE COLLECTION DATA HERE &gt;
-            </label>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder={
-                tab === "movie"
-                  ? `EXAMPLE (TEXT):\nTHE GODFATHER (1972)\nINCEPTION (2010)\n\nEXAMPLE (CSV):\nTITLE,YEAR\nTHE GODFATHER,1972\n\nEXAMPLE (JSON):\n[{"title":"INCEPTION", "year":2010}]`
-                  : `EXAMPLE (TEXT):\nDARK (2017–2020)\n\nEXAMPLE (CSV):\nTITLE,YEAR,STATUS\nDARK,2017,ENDED\n\nEXAMPLE (JSON):\n[{"title":"DARK", "year":2017}]`
-              }
-              className="h-44 w-full resize-none bg-tui-input border border-tui-border p-4 text-xs text-tui-text placeholder:text-tui-text-muted/30 outline-none focus:border-tui-amber transition-all scrollbar-thin uppercase"
-            />
-          </div>
-
-          {/* Preview Panel */}
-          <div className="border border-tui-border-muted bg-tui-bg/30 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-tui-text-muted">
-                {/* IMPORT_PREVIEW */}
-              </div>
-              {parsedPreview.length > 0 && (
-                <div className="text-[10px] font-bold text-tui-text-muted uppercase">
-                  {parsedPreview.length}{" "}
-                  {parsedPreview.length === 1 ? "ITEM" : "ITEMS"} DETECTED
-                </div>
-              )}
-            </div>
-            <div className="space-y-2">
-              {previewSliced.length ? (
-                previewSliced.map((p, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between gap-3 px-3 py-1.5 border border-tui-border bg-tui-panel/40"
-                  >
-                    <div className="truncate font-bold text-tui-text uppercase">
-                      {p.title}
-                    </div>
-                    <div className="text-tui-text-muted text-[10px] px-1.5 py-0.5 border border-tui-border-muted font-medium shrink-0">
-                      {formatYears(p)}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-tui-text-muted/50 text-center py-4 uppercase">
-                  PASTE LINES OR UPLOAD A FILE TO SEE PREVIEW...
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-tui-border-muted shrink-0 flex items-center justify-between bg-tui-bg/30">
-          <div className="text-[9px] text-tui-text-muted leading-relaxed hidden sm:block uppercase font-semibold">
-            FORMATS: <span className="text-tui-text">JSON ARRAYS</span> |{" "}
-            <span className="text-tui-text">CSV WITH HEADER</span> |{" "}
-            <span className="text-tui-text">PLAIN TEXT</span>
-          </div>
-          <div className="flex items-center gap-2 sm:ml-auto w-full sm:w-auto font-bold justify-end">
-            <button
-              onClick={() => setText("")}
-              className="px-4 py-2.5 border border-tui-border text-tui-text-muted hover:border-tui-text hover:text-tui-text transition-all uppercase"
-            >
-              [ CLEAR ]
-            </button>
-
-            <button
-              onClick={() => onImport(buildItems())}
-              disabled={!text.trim() || parsedPreview.length === 0}
-              className="px-4 py-2.5 border border-tui-border bg-tui-text text-tui-bg hover:bg-tui-text/90 transition-all uppercase disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              [ IMPORT{" "}
-              {parsedPreview.length > 0 ? `${parsedPreview.length} ` : ""}
-              ENTRIES ]
-            </button>
-          </div>
         </div>
       </div>
     </div>

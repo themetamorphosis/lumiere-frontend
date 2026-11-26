@@ -32,6 +32,12 @@ services:
       SECRET_KEY: ${SECRET_KEY}
       TMDB_API_KEY: ${TMDB_API_KEY}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
     ports:
       - "8000:8000"
 
@@ -39,6 +45,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://127.0.0.1:8000/api/v1}
     image: lumiere-frontend:local
     container_name: lumiere-frontend-app
     restart: unless-stopped
@@ -47,7 +55,9 @@ services:
         condition: service_started
     environment:
       API_URL: http://backend:8000/api/v1
-      NEXT_PUBLIC_API_URL: http://127.0.0.1:8000/api/v1
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_API_URL: ${AI_API_URL:-}
+      AI_MODEL: ${AI_MODEL:-}
     ports:
       - "3000:3000"
 

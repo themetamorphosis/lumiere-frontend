@@ -30,22 +30,6 @@ export default function MediaCard({
     setLoadedUrl(null);
   }
 
-  function handleFavActivate(e: React.SyntheticEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    onFav();
-  }
-  function handleMenuEdit(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    onEdit();
-  }
-  function handleMenuDelete(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    onDelete();
-  }
-
   const y = yearLabel(item);
   const meta = [y, ...(item.genres?.slice(0, 2) || [])]
     .filter(Boolean)
@@ -73,18 +57,16 @@ export default function MediaCard({
       : "text-tui-green";
 
   return (
-    <motion.div
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") onOpen();
-      }}
+    <motion.article
       whileTap={{ scale: 0.98 }}
-      className="group relative cursor-pointer select-none text-left outline-none font-mono"
-      aria-label={`Open ${item.title}`}
-      title="Open"
+      className="group relative select-none text-left font-mono"
     >
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`Open ${item.title}${y ? `, ${y}` : ""}`}
+        className="absolute inset-0 z-10 cursor-pointer focus-visible:-outline-offset-2"
+      />
       <motion.div
         className={`relative overflow-hidden bg-tui-panel border border-tui-border ${accentBorder} shadow-lg transition-transform duration-200 ease-out hover:-translate-y-1`}
       >
@@ -104,7 +86,7 @@ export default function MediaCard({
                 <div className="text-xs font-semibold text-tui-text-muted uppercase tracking-wider">
                   {item.title}
                 </div>
-                <div className="mt-1 text-[10px] text-tui-text-muted/50">
+                <div className="mt-1 text-[10px] text-tui-text-muted">
                   [ NO POSTER ]
                 </div>
               </div>
@@ -114,9 +96,11 @@ export default function MediaCard({
 
         {/* Hover Action controls (Monospace CLI buttons).
             touch-visible keeps them on screen where there is no hover. */}
-        <div className="touch-visible absolute top-2 right-2 z-20 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div className="touch-visible absolute top-2 right-2 z-20 flex flex-col gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
           <button
-            onClick={handleFavActivate}
+            onClick={onFav}
+            aria-pressed={item.favorite}
+            aria-label={item.favorite ? `Remove ${item.title} from favorites` : `Add ${item.title} to favorites`}
             className={`flex h-6 w-6 items-center justify-center font-mono text-[10px] border transition-all ${
               item.favorite
                 ? "border-tui-amber text-tui-amber bg-tui-amber/10"
@@ -130,7 +114,8 @@ export default function MediaCard({
           </button>
 
           <button
-            onClick={handleMenuEdit}
+            onClick={onEdit}
+            aria-label={`Edit ${item.title}`}
             className="flex h-6 px-1.5 items-center justify-center font-mono text-[9px] border border-tui-border text-tui-text-muted bg-tui-panel hover:border-tui-text-muted hover:text-tui-text transition-all"
             title="Edit"
           >
@@ -138,7 +123,8 @@ export default function MediaCard({
           </button>
 
           <button
-            onClick={handleMenuDelete}
+            onClick={onDelete}
+            aria-label={`Delete ${item.title}`}
             className="flex h-6 px-1.5 items-center justify-center font-mono text-[9px] border border-tui-border text-tui-text-muted bg-tui-panel hover:border-red-900/50 hover:text-red-400 transition-all"
             title="Delete"
           >
@@ -170,6 +156,6 @@ export default function MediaCard({
           </div>
         </div>
       </motion.div>
-    </motion.div>
+    </motion.article>
   );
 }

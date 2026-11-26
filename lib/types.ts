@@ -5,6 +5,7 @@ export type Item = {
   id: string;
   title: string;
   mediaType: MediaType;
+  tmdbId?: number;
   status: Status;
   favorite: boolean;
   genres?: string[];
@@ -20,6 +21,21 @@ export type Item = {
 
   createdAt: number;
   updatedAt: number;
+};
+
+export type LibraryLoad = {
+  items: Item[];
+  state: "complete" | "partial" | "error";
+  message?: string;
+};
+
+export type ImportOutcome = "imported" | "duplicate" | "unconfirmed";
+
+export type ImportResult = {
+  imported: number;
+  skipped: number;
+  failed: number;
+  results: ImportOutcome[];
 };
 
 /** Another user as they appear to you. Never carries an email. */

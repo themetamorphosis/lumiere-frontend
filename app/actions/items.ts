@@ -1,19 +1,21 @@
 "use server";
 
 import { authedFetch } from "@/lib/serverFetch";
-import type { Item, MediaType, Status } from "@/lib/types";
+import type { Item, ImportOutcome, ImportResult, LibraryLoad, MediaType, Status } from "@/lib/types";
 import { safeParseWatchlistItems } from "@/lib/validators";
+import { apiErrorMessage, SESSION_EXPIRED } from "@/lib/apiError";
 
 type ItemInput = {
   id?: string;
   title: string;
   mediaType: MediaType;
+  tmdbId?: number;
   status: Status;
   favorite: boolean;
   genres?: string[];
   notes?: string;
   description?: string;
-  year?: number;
+  year?: number | null;
   endYear?: number;
   running?: boolean;
   coverUrl?: string;
@@ -27,54 +29,60 @@ export async function getUserId(): Promise<string> {
   return user.id;
 }
 
-/** Items requested per request. The backend caps `limit` at 500. */
-const PAGE_SIZE = 100;
+/** Use the backend's maximum page size to reduce round trips for large libraries. */
+const PAGE_SIZE = 500;
 
-/** Stops a malformed `has_more` from looping forever. 100 pages = 10k items. */
-const MAX_PAGES = 100;
+/** Stops a malformed `has_more` from looping forever while supporting 10,000 rows. */
+const MAX_PAGES = 10_000 / PAGE_SIZE;
 
-export async function getItems(): Promise<Item[]> {
-  // Pages explicitly rather than relying on the server default. The backend
-  // still defaults `limit=0` ("everything") for older clients, so this works
-  // against both the current and the paginated-by-default backend — which is
-  // what makes the two deploys independent. See REMEDIATION_PLAN.md 2.6/2.10.
-  const raw: unknown[] = [];
+export async function getItems(): Promise<LibraryLoad> {
+  const items: Item[] = [];
+  const seen = new Set<string>();
+  const failure = (message = "Could not load the library. Please try again."): LibraryLoad =>
+    ({ items, state: items.length ? "partial" : "error", message });
 
-  for (let page = 0; page < MAX_PAGES; page++) {
-    const offset = page * PAGE_SIZE;
-    const res = await authedFetch(
-      `/watchlist?limit=${PAGE_SIZE}&offset=${offset}`,
-      { cache: "no-store" },
-    );
-    if (!res.ok) return page === 0 ? [] : raw.length ? finalize(raw) : [];
+  try {
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const offset = page * PAGE_SIZE;
+      const res = await authedFetch(
+        `/watchlist?limit=${PAGE_SIZE}&offset=${offset}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) return failure(res.status === 401 ? SESSION_EXPIRED : undefined);
 
-    const json = await res.json();
+      const data = await res.json();
+      const legacy = Array.isArray(data);
+      if (!legacy && (!Array.isArray(data?.items) || typeof data.has_more !== "boolean")) {
+        return failure();
+      }
+      const parsed = safeParseWatchlistItems(legacy ? data : data.items);
+      if (!parsed.success) return failure();
 
-    // A bare array means an older backend that ignored the pagination
-    // parameters and returned everything; there is no second page to fetch.
-    if (Array.isArray(json)) {
-      raw.push(...json);
-      break;
+      for (const item of normalizeItems(parsed.data)) {
+        if (seen.has(item.id)) return failure("The library changed while loading. Please try again.");
+        seen.add(item.id);
+        items.push(item);
+      }
+
+      if (legacy) return { items, state: "complete" };
+      if (!data.has_more) {
+        if (typeof data.total === "number" && data.total !== items.length) {
+          return failure("The library changed while loading. Please try again.");
+        }
+        return { items, state: "complete" };
+      }
+      if (parsed.data.length !== PAGE_SIZE) return failure();
     }
-
-    const items = json.items ?? [];
-    raw.push(...items);
-
-    if (!json.has_more || items.length === 0) break;
+  } catch {
+    return failure();
   }
-
-  return finalize(raw);
+  return failure("The library exceeds the current display limit.");
 }
 
-function finalize(raw: unknown[]): Item[] {
-  const parsed = safeParseWatchlistItems(raw);
-  if (!parsed.success) {
-    console.error("Watchlist items validation failed:", parsed.error);
-    return [];
-  }
-
-  return parsed.data.map((item) => ({
+function normalizeItems(rows: Extract<ReturnType<typeof safeParseWatchlistItems>, { success: true }>["data"]): Item[] {
+  return rows.map((item) => ({
     ...item,
+    tmdbId: item.tmdbId ?? undefined,
     notes: item.notes ?? undefined,
     description: item.description ?? undefined,
     coverUrl: item.coverUrl ?? undefined,
@@ -102,7 +110,7 @@ export async function upsertItem(data: ItemInput) {
     });
   }
   if (res.ok) return { success: true };
-  return { error: "Failed to save item" };
+  return { error: await apiErrorMessage(res, "Failed to save item") };
 }
 
 export async function deleteItem(id: string) {
@@ -142,37 +150,41 @@ export async function updateMetadata(
 /** The backend rejects a batch larger than this with a 413. */
 const MAX_BATCH_SIZE = 100;
 
-export async function importItems(items: ItemInput[]) {
-  // Chunked to the server's documented ceiling. The previous code posted the
-  // whole list, took the resulting 413 as "old backend", and fell back to one
-  // request per item — which for a 300-item import meant 300 POSTs and a
-  // rate-limit wall around request 60.
-  let imported = 0;
-  let failed = 0;
-
+export async function importItems(items: ItemInput[]): Promise<ImportResult> {
+  const results: ImportOutcome[] = [];
   for (let i = 0; i < items.length; i += MAX_BATCH_SIZE) {
     const chunk = items.slice(i, i + MAX_BATCH_SIZE);
+    let outcomes: ImportOutcome[] = chunk.map(() => "unconfirmed");
     try {
-      const res = await authedFetch(`/watchlist/batch`, {
+      const res = await authedFetch("/watchlist/batch", {
         method: "POST",
         body: JSON.stringify(chunk),
       });
       if (res.ok) {
         const data = await res.json();
-        imported += data.imported ?? 0;
-      } else {
-        failed += chunk.length;
+        const rows: unknown = data.results;
+        if (
+          Array.isArray(rows) &&
+          rows.length === chunk.length &&
+          rows.every((value) => value === "imported" || value === "duplicate")
+        ) {
+          outcomes = rows;
+        } else if (data.imported === chunk.length && !data.skipped) {
+          outcomes = chunk.map(() => "imported");
+        } else if (data.skipped === chunk.length && !data.imported) {
+          outcomes = chunk.map(() => "duplicate");
+        }
       }
     } catch {
-      failed += chunk.length;
+      // The write may have committed before the connection timed out. Let a
+      // retry use the same identity rules and report the matching rows.
     }
+    results.push(...outcomes);
   }
-
-  // A partial import is still a success — the caller reports what landed —
-  // but a run where nothing at all landed is a failure worth surfacing.
-  if (failed > 0 && imported === 0) {
-    return { error: "Import failed", imported: 0 };
-  }
-
-  return { success: true, imported, failed };
+  return {
+    imported: results.filter((result) => result === "imported").length,
+    skipped: results.filter((result) => result === "duplicate").length,
+    failed: results.filter((result) => result === "unconfirmed").length,
+    results,
+  };
 }

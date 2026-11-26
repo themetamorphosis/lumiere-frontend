@@ -102,7 +102,7 @@ export default function SocialPage() {
             />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-              <MessageSquare className="h-8 w-8 text-tui-text-muted/40" />
+              <MessageSquare className="h-8 w-8 text-tui-text-muted" />
               <p className="font-mono text-[11px] uppercase tracking-wider text-tui-text-muted">
                 {overview.friends.length === 0
                   ? "Add a friend to start talking"

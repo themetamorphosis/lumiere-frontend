@@ -1,9 +1,9 @@
-import { createHash } from "crypto";
+import { fetchWithSession, SERVER_API_BASE } from "@/lib/serverFetch";
+import { checkChatRateLimit, RATE_LIMIT_WINDOW_MS } from "@/lib/chatRateLimit";
 import { z } from "zod";
 
 export const maxDuration = 30;
 
-const BACKEND_API = process.env.API_URL || "http://127.0.0.1:8000/api/v1";
 const AI_API_URL =
   process.env.AI_API_URL || "https://api.deepseek.com/chat/completions";
 const AI_MODEL = process.env.AI_MODEL || "deepseek-chat";
@@ -15,10 +15,6 @@ const MAX_TOOL_TURNS = 8;
  *  streamed model calls against a paid API, so the input side is bounded too. */
 const MAX_MESSAGES = 20;
 const MAX_MESSAGE_CHARS = 4000;
-
-/** Per-session request budget. */
-const RATE_LIMIT_MAX_REQUESTS = 10;
-const RATE_LIMIT_WINDOW_MS = 60_000;
 
 interface ToolCall {
   id: string;
@@ -45,7 +41,7 @@ async function executeTool(
 ) {
   switch (name) {
     case "searchMedia": {
-      const url = new URL(`${BACKEND_API}/media/search`);
+      const url = new URL(`${SERVER_API_BASE}/media/search`);
       url.searchParams.set("query", args.query as string);
       if (args.type) url.searchParams.set("type", args.type as string);
       const res = await fetch(url.toString(), {
@@ -56,7 +52,7 @@ async function executeTool(
       return { results: data.results?.slice(0, 3) || [], error: null };
     }
     case "getUserLibrary": {
-      const res = await fetch(`${BACKEND_API}/watchlist`, {
+      const res = await fetch(`${SERVER_API_BASE}/watchlist`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok)
@@ -83,7 +79,7 @@ async function executeTool(
       };
     }
     case "addToLibrary": {
-      const res = await fetch(`${BACKEND_API}/watchlist`, {
+      const res = await fetch(`${SERVER_API_BASE}/watchlist`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -208,58 +204,37 @@ const ChatBodySchema = z.object({
   messages: z.array(ChatMessageSchema).min(1).max(MAX_MESSAGES),
 });
 
-/**
- * Per-session sliding window. In-memory, so it is per server instance and
- * resets on deploy — enough to stop a runaway client from billing us for an
- * unbounded number of model round trips, not a distributed quota. Move this to
- * Redis alongside the backend's rate limiter when running more than one
- * instance.
- */
-const rateLimitBuckets = new Map<string, number[]>();
-
-function checkRateLimit(token: string): boolean {
-  const key = createHash("sha256").update(token).digest("hex");
-  const now = Date.now();
-  const recent = (rateLimitBuckets.get(key) ?? []).filter(
-    (t) => now - t < RATE_LIMIT_WINDOW_MS,
-  );
-
-  if (recent.length >= RATE_LIMIT_MAX_REQUESTS) {
-    rateLimitBuckets.set(key, recent);
-    return false;
-  }
-
-  recent.push(now);
-  rateLimitBuckets.set(key, recent);
-
-  // Bounded cleanup so an instance that has seen many sessions doesn't grow
-  // the map forever.
-  if (rateLimitBuckets.size > 1000) {
-    for (const [k, times] of rateLimitBuckets) {
-      if (times.every((t) => now - t >= RATE_LIMIT_WINDOW_MS)) {
-        rateLimitBuckets.delete(k);
-      }
-    }
-  }
-
-  return true;
+function getApiKey() {
+  return process.env.AI_API_KEY?.trim();
 }
 
-/** Test seam: the limiter is module state and would leak between test cases. */
-export function __resetChatRateLimit() {
-  rateLimitBuckets.clear();
+export function GET() {
+  return Response.json(
+    { enabled: Boolean(getApiKey()) },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }
 
 export async function POST(req: Request) {
-  const { cookies } = await import("next/headers");
-  const cookieStore = await cookies();
-  const token = cookieStore.get("auth_token")?.value;
+  const apiKey = getApiKey();
+  if (!apiKey) return new Response("AI assistant is unavailable", { status: 503 });
 
-  if (!token) {
-    return new Response("Unauthorized", { status: 401 });
+  let accountId: string;
+  let token: string;
+  try {
+    const { response: verified, accessToken } = await fetchWithSession("/auth/me", { cache: "no-store" });
+    if (verified.status === 401) return new Response("Unauthorized", { status: 401 });
+    if (!verified.ok) return new Response("Session service unavailable", { status: 503 });
+    const user = await verified.json();
+    if (typeof user.id !== "string") return new Response("Session service unavailable", { status: 503 });
+    if (!accessToken) return new Response("Unauthorized", { status: 401 });
+    accountId = user.id;
+    token = accessToken;
+  } catch {
+    return new Response("Session service unavailable", { status: 503 });
   }
 
-  if (!checkRateLimit(token)) {
+  if (!checkChatRateLimit(accountId)) {
     return new Response("Too many requests", {
       status: 429,
       headers: { "Retry-After": String(RATE_LIMIT_WINDOW_MS / 1000) },
@@ -278,11 +253,6 @@ export async function POST(req: Request) {
     return new Response("Invalid request body", { status: 400 });
   }
   const { messages } = parsed.data;
-
-  const apiKey = process.env.AI_API_KEY;
-  if (!apiKey) {
-    return new Response("Missing AI_API_KEY", { status: 500 });
-  }
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({

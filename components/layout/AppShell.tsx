@@ -2,13 +2,28 @@
 
 import React from "react";
 import TopNavBar from "./TopNavBar";
-import AiChatModal from "../AiChatModal";
+import dynamic from "next/dynamic";
 import { useRetroTheme } from "./RetroThemeContext";
+
+const AiChatModal = dynamic(() => import("../AiChatModal"), { ssr: false });
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const { scanlines, theme } = useRetroTheme();
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
+  const [aiEnabled, setAiEnabled] = React.useState(false);
+  React.useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/chat", { signal: controller.signal, cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((status) => {
+        if (!controller.signal.aborted) setAiEnabled(status?.enabled === true);
+      })
+      .catch(() => {
+        // AI availability cannot block the library.
+      });
+    return () => controller.abort();
+  }, []);
   const isRetro = mounted && theme.startsWith("retro");
 
   return (
@@ -39,14 +54,14 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       <TopNavBar />
 
       {/* Global AI Assistant Overlay */}
-      <AiChatModal />
+      {aiEnabled && <AiChatModal />}
 
       {/* Main content.
           The header is sticky, so it already reserves its own height in flow —
           extra top padding here just pushed every page down by a dead band.
           No z-index either: it would open a stacking context that traps page
           modals underneath the z-50 header. */}
-      <main className="relative">{children}</main>
+      <main id="main-content" tabIndex={-1} className="relative">{children}</main>
     </div>
   );
 }

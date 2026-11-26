@@ -112,9 +112,10 @@ export default function ProfilePage() {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-tui-bg flex items-center justify-center font-mono">
-        <Loader2 className="h-8 w-8 text-tui-text-muted/35 animate-spin" />
-      </div>
+      <main id="main-content" tabIndex={-1} className="min-h-screen bg-tui-bg flex items-center justify-center font-mono">
+        <span role="status" className="sr-only">Loading profile</span>
+        <Loader2 className="h-8 w-8 text-tui-text-muted animate-spin" />
+      </main>
     );
   }
 
@@ -169,7 +170,8 @@ export default function ProfilePage() {
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  className="touch-visible absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center cursor-pointer border-0"
+                  aria-label="Upload profile photo"
+                  className="touch-visible absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-200 flex items-center justify-center cursor-pointer border-0"
                 >
                   {uploading ? (
                     <Loader2 className="h-6 w-6 text-white animate-spin" />
@@ -243,38 +245,40 @@ export default function ProfilePage() {
               <div className="space-y-5">
                 {/* Name */}
                 <div>
-                  <label className="block text-[10px] font-bold text-tui-text-muted uppercase mb-2 tracking-wider">
+                  <label htmlFor="profile-name" className="block text-[10px] font-bold text-tui-text-muted uppercase mb-2 tracking-wider">
                     DISPLAY NAME
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-tui-text-muted/40" />
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-tui-text-muted" />
                     <input
+                      id="profile-name"
                       type="text"
                       name="name"
                       defaultValue={session.user?.name || ""}
                       placeholder="YOUR NAME"
-                      className="w-full pl-11 pr-4 py-2.5 bg-tui-input border border-tui-border text-tui-text placeholder:text-tui-text-muted/30 focus:border-tui-text focus:bg-tui-input outline-none transition-all uppercase"
+                      className="w-full pl-11 pr-4 py-2.5 bg-tui-input border border-tui-border text-tui-text placeholder:text-tui-text-muted focus:border-tui-text focus:bg-tui-input outline-none transition-all uppercase"
                     />
                   </div>
                 </div>
 
                 {/* Handle — how friends find you in /social */}
                 <div>
-                  <label className="block text-[10px] font-bold text-tui-text-muted uppercase mb-2 tracking-wider">
+                  <label htmlFor="profile-handle" className="block text-[10px] font-bold text-tui-text-muted uppercase mb-2 tracking-wider">
                     HANDLE
                   </label>
                   <div className="relative flex items-center bg-tui-input border border-tui-border focus-within:border-tui-text">
-                    <AtSign className="ml-3.5 h-4 w-4 text-tui-text-muted/40 shrink-0" />
+                    <AtSign className="ml-3.5 h-4 w-4 text-tui-text-muted shrink-0" />
                     <input
+                      id="profile-handle"
                       type="text"
                       name="handle"
                       defaultValue={session.user?.handle || ""}
                       placeholder="yourname"
                       autoComplete="off"
-                      className="w-full pl-2 pr-4 py-2.5 bg-transparent text-tui-text placeholder:text-tui-text-muted/30 outline-none transition-all"
+                      className="w-full pl-2 pr-4 py-2.5 bg-transparent text-tui-text placeholder:text-tui-text-muted outline-none transition-all"
                     />
                   </div>
-                  <p className="text-[10px] text-tui-text-muted/50 uppercase mt-1.5">
+                  <p className="text-[10px] text-tui-text-muted uppercase mt-1.5">
                     * Friends find you by handle. Lowercase letters, numbers and
                     underscores
                   </p>
@@ -282,37 +286,39 @@ export default function ProfilePage() {
 
                 {/* Email (read-only) */}
                 <div>
-                  <label className="block text-[10px] font-bold text-tui-text-muted uppercase mb-2 tracking-wider">
+                  <label htmlFor="profile-email" className="block text-[10px] font-bold text-tui-text-muted uppercase mb-2 tracking-wider">
                     EMAIL ADDRESS
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-tui-text-muted/30" />
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-tui-text-muted" />
                     <input
+                      id="profile-email"
                       type="email"
                       value={session.user?.email || ""}
-                      disabled
-                      className="w-full pl-11 pr-4 py-2.5 bg-tui-input/40 border border-tui-border/50 text-tui-text-muted/65 cursor-not-allowed uppercase"
+                      readOnly
+                      className="w-full pl-11 pr-4 py-2.5 bg-tui-input/40 border border-tui-border/50 text-tui-text-muted"
                     />
                   </div>
-                  <p className="text-[10px] text-tui-text-muted/50 uppercase mt-1.5">
+                  <p className="text-[10px] text-tui-text-muted uppercase mt-1.5">
                     * Email address is read-only and cannot be altered
                   </p>
                 </div>
 
                 {/* Profile Image URL — alternative to upload */}
                 <div>
-                  <label className="block text-[10px] font-bold text-tui-text-muted uppercase mb-2 tracking-wider">
-                    PHOTO URL DIRECTORY
+                  <label htmlFor="profile-image" className="block text-[10px] font-bold text-tui-text-muted uppercase mb-2 tracking-wider">
+                    Photo URL
                   </label>
                   <div className="relative">
-                    <Camera className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-tui-text-muted/40" />
+                    <Camera className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-tui-text-muted" />
                     <input
+                      id="profile-image"
                       type="text"
                       name="image"
                       value={imageUrlInput}
                       placeholder="HTTPS://EXAMPLE.COM/PHOTO.JPG"
                       onChange={handleImageUrlChange}
-                      className="w-full pl-11 pr-4 py-2.5 bg-tui-input border border-tui-border text-tui-text placeholder:text-tui-text-muted/30 focus:border-tui-text focus:bg-tui-input outline-none transition-all"
+                      className="w-full pl-11 pr-4 py-2.5 bg-tui-input border border-tui-border text-tui-text placeholder:text-tui-text-muted focus:border-tui-text focus:bg-tui-input outline-none transition-all"
                     />
                   </div>
                 </div>
@@ -348,7 +354,7 @@ export default function ProfilePage() {
                     {session.user?.email}
                   </span>
                 </div>
-                <div className="text-[10px] text-tui-text-muted/60 uppercase mt-1">
+                <div className="text-[10px] text-tui-text-muted uppercase mt-1">
                   MEMBER DIRECTORY CREATED:{" "}
                   {new Date()
                     .toLocaleDateString("en-US", {

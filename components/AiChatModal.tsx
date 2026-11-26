@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useModalA11y } from "@/hooks/useModalA11y";
 import { Bot, X, Sparkles, Send } from "lucide-react";
 
 interface ChatMessage {
@@ -16,19 +17,13 @@ export default function AiChatModal() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const { containerRef, trapFocus } = useModalA11y(() => setIsOpen(false), isOpen);
 
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, isLoading]);
-
-  useEffect(() => {
-    if (!isLoading && isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 50);
-    }
-  }, [isLoading, isOpen]);
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -110,6 +105,8 @@ export default function AiChatModal() {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(true)}
+        aria-label="Open AI assistant"
+        aria-haspopup="dialog"
         className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#111] backdrop-blur-md border border-white/10 text-white shadow-[0_8px_32px_rgba(0,0,0,0.5)] hover:bg-[#222] hover:border-white/20 transition-all duration-300"
       >
         <Sparkles className="h-6 w-6 text-white/80" />
@@ -128,6 +125,12 @@ export default function AiChatModal() {
             />
 
             <motion.div
+              ref={containerRef}
+              tabIndex={-1}
+              role="dialog"
+              aria-modal="true"
+              aria-label="AI assistant"
+              onKeyDown={trapFocus}
               initial={{ opacity: 0, scale: 0.9, y: 20, filter: "blur(20px)" }}
               animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
               exit={{ opacity: 0, scale: 0.9, y: 20, filter: "blur(20px)" }}
@@ -139,7 +142,7 @@ export default function AiChatModal() {
               }}
               className="fixed bottom-0 right-0 top-0 z-50 flex w-full flex-col 
                                        bg-[#0a0a0a]/80 backdrop-blur-2xl shadow-2xl border-l border-white/10 
-                                       sm:bottom-6 sm:top-auto sm:right-6 sm:h-[650px] sm:w-[420px] 
+                                       sm:bottom-6 sm:top-auto sm:right-6 sm:h-[min(650px,calc(100dvh-3rem))] sm:w-[420px]
                                        sm:rounded-3xl sm:border sm:border-white/10 overflow-hidden"
               style={{ transformOrigin: "bottom right" }}
             >
@@ -153,18 +156,12 @@ export default function AiChatModal() {
                     <h3 className="font-medium text-white/90 tracking-wide text-sm">
                       Vault Assistant
                     </h3>
-                    <p className="text-[10px] text-white/40 tracking-wider flex items-center gap-1.5 mt-0.5">
-                      <span className="relative flex h-1.5 w-1.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white/40 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white/60"></span>
-                      </span>
-                      Active
-                    </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="relative rounded-full p-2 text-white/40 hover:bg-white/10 hover:text-white transition-all duration-200"
+                  aria-label="Close AI assistant"
+                  className="relative rounded-full p-2 text-white/70 hover:bg-white/10 hover:text-white transition-all duration-200"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -183,7 +180,7 @@ export default function AiChatModal() {
                       <p className="text-white/80 font-medium">
                         How can I assist you today?
                       </p>
-                      <p className="text-xs text-white/40 max-w-[250px] leading-relaxed mx-auto">
+                      <p className="text-xs text-white/70 max-w-[250px] leading-relaxed mx-auto">
                         I can recommend movies, semantic search by vibe, or
                         automatically add items to your library.
                       </p>
@@ -283,16 +280,18 @@ export default function AiChatModal() {
                   className="relative flex items-center group"
                 >
                   <input
-                    ref={inputRef}
+                    data-dialog-autofocus
+                    aria-label="Message the AI assistant"
                     name="message"
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     placeholder="Ask Assistant..."
                     disabled={isLoading}
-                    className="w-full relative z-10 bg-white/[0.05] backdrop-blur-xl border border-white/10 rounded-2xl pl-5 pr-14 py-3.5 text-[15px] text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-white/20 focus:bg-white/[0.08] transition-all disabled:opacity-50"
+                    className="w-full relative z-10 bg-white/[0.05] backdrop-blur-xl border border-white/10 rounded-2xl pl-5 pr-14 py-3.5 text-[15px] text-white placeholder-white/65 focus:outline-none focus:ring-1 focus:ring-white/20 focus:bg-white/[0.08] transition-all disabled:opacity-50"
                   />
                   <button
                     type="submit"
+                    aria-label="Send message"
                     disabled={!chatInput.trim() || isLoading}
                     className="absolute right-1.5 z-20 p-2.5 rounded-full bg-white/5 text-white/50 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-white/50 transition-all duration-200"
                   >
@@ -300,7 +299,7 @@ export default function AiChatModal() {
                   </button>
                 </form>
                 <div className="text-center mt-3">
-                  <p className="text-[10px] text-white/30 font-medium tracking-wide">
+                  <p className="text-[10px] text-white/70 font-medium tracking-wide">
                     AI Assistant may produce inaccurate information.
                   </p>
                 </div>
